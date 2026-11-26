@@ -1,180 +1,140 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#192b23">
 <title>HuntLink</title>
-
-<link rel="stylesheet"
- href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <style>
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #18251c;
-  }
-  header {
-    height: 56px;
-    background: #18251c;
-    color: white;
-    padding: 15px;
-    font-size: 23px;
-    font-weight: bold;
-  }
-  #map {
-    height: calc(100dvh - 56px);
-    width: 100%;
-  }
-  #locate {
-    position: absolute;
-    bottom: 42px;
-    right: 15px;
-    z-index: 1000;
-    padding: 15px 22px;
-    background: #18251c;
-    color: white;
-    border: 1px solid #888;
-    border-radius: 10px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  #status {
-    position: absolute;
-    top: 66px;
-    left: 55px;
-    z-index: 1000;
-    background: #18251c;
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 12px;
-    max-width: 180px;
-  }
+*{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:#192b23;color:#fff;font:15px system-ui,sans-serif} button,input{font:inherit} button{cursor:pointer;border:0;border-radius:9px;padding:11px 14px;font-weight:650;background:#e8eee9;color:#192b23} button:disabled{opacity:.5;cursor:default} .primary{background:#c7e79a;color:#192b23} .danger{background:#f5c5bd;color:#651e17} header{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;gap:8px} h1{font-size:23px;margin:0} #app{height:100vh;height:100dvh;display:flex;flex-direction:column} #map{flex:1;min-height:0;background:#324439} #panel{padding:10px 14px max(12px,env(safe-area-inset-bottom));display:grid;gap:8px} .buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons button{flex:1} #status,#connection,#notice{font-size:13px;line-height:1.4;color:#e0e9e0} #notice{color:#ffdf9c} #friends{display:flex;gap:7px;overflow-x:auto} #friends button{flex-shrink:0;text-align:left;font-size:12px;padding:7px 10px} #login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px} form{width:min(100%,380px);padding:24px;background:#263c30;border:1px solid #506557;border-radius:16px;display:grid;gap:12px} form h1{font-size:32px} form p{margin:0;line-height:1.5;color:#e0e9e0} label{display:grid;gap:5px} input{width:100%;border:1px solid #829789;border-radius:8px;padding:12px;background:#f5f7f4;color:#192b23} #error{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere} .leaflet-tooltip.hunter-label{font-weight:650;white-space:nowrap;color:#fff;background:#192b23;border:0;box-shadow:0 1px 4px #0006} .leaflet-tooltip.hunter-label:before{display:none}
 </style>
 </head>
-
 <body>
-
-<header>🌲 HuntLink</header>
-<div id="map"></div>
-<div id="status">GPS not started</div>
-<button id="locate">◎ My Location</button>
-
-<script>
-
-const aerial = L.tileLayer(
-  'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
-  {
-    maxNativeZoom: 16,
-    maxZoom: 19,
-    attribution: 'USGS National Map / USDA'
-  }
-);
-
-const topo = L.tileLayer(
-  'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
-  {
-    maxNativeZoom: 16,
-    maxZoom: 19,
-    attribution: 'USGS National Map'
-  }
-);
-
-const map = L.map('map', {
-  center: [48.0, -116.85],
-  zoom: 12,
-  layers: [aerial],
-  maxZoom: 19
+<section id="login"><form id="loginForm"><h1>🌲 HuntLink</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit">Enter HuntLink</button><p>Sharing is off until you turn it on.  Everyone with the group password can see your shared location.</p><div id="error" role="status">Connecting...</div></form></section>
+<section id="app" hidden><header><div><h1>🌲 HuntLink</h1><div id="connection">Connecting...</div></div><button id="logout">Leave group</button></header><div id="map"></div><div id="panel"><div id="status" role="status">GPS not started. Sharing off.</div><div class="buttons"><button id="locate">◎ My location</button><button id="share" class="primary">Start sharing</button></div><div id="friends"></div><div id="notice">Keep this page open. GPS sharing needs internet and is not a safety or emergency service.</div></div></section>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
+import { getAuth, signInAnonymously, signOut } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js';
+import { getDatabase, ref, set, remove, onValue, onDisconnect, serverTimestamp, get } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-database.js';
+const app = initializeApp({
+ apiKey:'AIzaSyAbiYap0fe2P1CmRcL1evCIZcB4zwFxhcs',
+ authDomain:'huntlink-9c932.firebaseapp.com',
+ projectId:'huntlink-9c932',
+ databaseURL:'https://huntlink-9c932-default-rtdb.firebaseio.com',
+ storageBucket:'huntlink-9c932.firebasestorage.app',
+ messagingSenderId:'638329750837',
+ appId:'1:638329750837:web:9f94b3b5e83dd4605e787c'
 });
-
-L.control.layers({
-  "Aerial": aerial,
-  "Topographic": topo
-}).addTo(map);
-
-L.control.scale({
-  metric: false,
-  imperial: true
-}).addTo(map);
-
-let marker;
-let accuracyCircle;
-let firstFix = true;
-let watchId = null;
-
-document.getElementById('locate').onclick = function() {
-
-  if (!navigator.geolocation) {
-    document.getElementById('status').textContent =
-      "GPS unavailable";
-    return;
-  }
-
-  if (watchId !== null) {
-    if (marker) map.setView(marker.getLatLng(), 16);
-    return;
-  }
-
-  document.getElementById('status').textContent =
-    "Finding your location...";
-
-  watchId = navigator.geolocation.watchPosition(
-    function(position) {
-
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const accuracy = position.coords.accuracy;
-
-      if (!marker) {
-        marker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: 'white',
-          weight: 3,
-          fillColor: '#1683ff',
-          fillOpacity: 1
-        }).addTo(map).bindPopup("You");
-
-        accuracyCircle = L.circle([lat, lng], {
-          radius: accuracy,
-          color: '#1683ff',
-          weight: 1,
-          fillOpacity: 0.12
-        }).addTo(map);
-      } else {
-        marker.setLatLng([lat, lng]);
-        accuracyCircle.setLatLng([lat, lng]);
-        accuracyCircle.setRadius(accuracy);
-      }
-
-      if (firstFix) {
-        map.setView([lat, lng], 16);
-        firstFix = false;
-      }
-
-      document.getElementById('status').textContent =
-        "GPS accuracy: " +
-        Math.round(accuracy * 3.28084) + " ft";
-
-    },
-    function(error) {
-      document.getElementById('status').textContent =
-        "GPS unavailable: " + error.message;
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-    },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 20000
-    }
-  );
+const auth=getAuth(app), db=getDatabase(app);
+const $=id=>document.getElementById(id);
+const aerial=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19,attribution:'USGS National Map / USDA'});
+const topo=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19,attribution:'USGS National Map'});
+const map=L.map('map',{center:[48,-116.85],zoom:12,layers:[aerial],maxZoom:19});
+L.control.layers({Aerial:aerial,Topographic:topo}).addTo(map);
+L.control.scale({metric:false,imperial:true}).addTo(map);
+let uid=null, name='', joined=false, connected=false, offset=0, unsubscribe=null;
+let ownMarker=null, circle=null, watch=null, fix=null, sharing=false, armed=false, writing=false, lastSent=0, epoch=0;
+let locations={}, markers=new Map(), busy=false;
+const storage={get(){try{return localStorage.getItem('huntlinkName')||''}catch{return ''}},set(v){try{localStorage.setItem('huntlinkName',v)}catch{}},clear(){try{localStorage.removeItem('huntlinkName')}catch{}}};
+const memberRef=()=>ref(db,'members/'+uid), ownRef=()=>ref(db,'locations/'+uid);
+function status(s){$('status').textContent=s}
+function connection(){ $('connection').textContent=connected?'Connected to group':'Offline · locations may be stale'; }
+function updateSharing(){ $('share').textContent=sharing?'Stop sharing':'Start sharing'; $('share').className=sharing?'danger':'primary'; $('share').disabled=busy; }
+function safeText(s){const e=document.createElement('span'); e.textContent=s; return e;}
+function render(){
+ if(!joined)return;
+ const seen=new Set(); $('friends').replaceChildren();
+ for(const [id,p] of Object.entries(locations||{})){
+  if(id===uid||!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||!Number.isFinite(p.updatedAt))continue;
+  const age=Math.max(0,(Date.now()+offset-p.updatedAt)/1000);
+  if(age>120)continue;
+  const live=age<30&&connected, label=String(p.name||'Hunter')+' · '+Math.floor(age)+'s ago';
+  seen.add(id); let marker=markers.get(id);
+  if(!marker){marker=L.circleMarker([p.lat,p.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1});marker.addTo(map);marker.bindTooltip(safeText(label),{permanent:true,direction:'top',className:'hunter-label'});markers.set(id,marker);}
+  marker.setLatLng([p.lat,p.lng]);marker.setStyle({fillColor:live?'#39b66b':'#929a9f'});marker.setTooltipContent(safeText(label));
+  const b=document.createElement('button'); b.textContent=label; b.onclick=()=>map.setView([p.lat,p.lng],16); $('friends').append(b);
+ }
+ for(const [id,m] of markers){if(!seen.has(id)){m.remove();markers.delete(id);}}
+ if(!seen.size)$('friends').append(safeText('No other recent shared locations.'));
+}
+function openMap(){
+ joined=true; $('login').hidden=true; $('app').hidden=false; $('error').textContent=''; connection(); updateSharing();
+ requestAnimationFrame(()=>map.invalidateSize());
+ if(unsubscribe)unsubscribe();
+ unsubscribe=onValue(ref(db,'locations'),s=>{locations=s.val()||{};render()},()=>{locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
+}
+async function enter(e){
+ e.preventDefault(); if(busy)return;busy=true;$('enter').disabled=true;$('error').textContent='Checking group password...';
+ try{
+  name=$('name').value.trim(); if(!name||name.length>50)throw new Error('Enter your name.');
+  if(!auth.currentUser)await signInAnonymously(auth);uid=auth.currentUser.uid;
+  if(!connected)throw new Error('No database connection. Try again when connected.');
+  await set(memberRef(),$('password').value);
+  $('password').value=''; storage.set(name); openMap();
+ }catch(e){$('error').textContent=e.code==='PERMISSION_DENIED'||e.code==='permission-denied'?'Incorrect group password or database rules.':(e.message||'Unable to join.');}
+ finally{busy=false;$('enter').disabled=false;updateSharing();}
+}
+$('loginForm').addEventListener('submit',enter);
+function startGPS(){
+ if(!navigator.geolocation){status('GPS is unavailable.');return false;}
+ if(watch!==null)return true;
+ status('Finding your location...');
+ watch=navigator.geolocation.watchPosition(p=>{
+  const {latitude:lat,longitude:lng,accuracy}=p.coords;
+  fix={lat,lng,accuracy,time:p.timestamp};
+  if(!ownMarker){circle=L.circle([lat,lng],{radius:accuracy,color:'#1683ff',weight:1,fillOpacity:.12}).addTo(map);ownMarker=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:3,fillColor:'#1683ff',fillOpacity:1}).addTo(map).bindTooltip('You',{permanent:true,direction:'top',className:'hunter-label'});map.setView([lat,lng],16);}
+  else{ownMarker.setLatLng([lat,lng]);circle.setLatLng([lat,lng]).setRadius(accuracy);}
+  if(!sharing)status('GPS accuracy: '+Math.round(accuracy*3.28084)+' ft · Sharing off');
+  else if(!connected)status('Offline · not sending your location');
+  void publishFix();
+ },e=>{status('GPS unavailable: '+e.message);if(e.code===1){navigator.geolocation.clearWatch(watch);watch=null;if(sharing)void stopSharing();}},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+ return true;
+}
+$('locate').onclick=()=>{if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
+async function arm(){
+ if(!joined||!sharing||!connected)return;
+ const generation=epoch;
+ try{await onDisconnect(ownRef()).remove();if(epoch!==generation||!sharing||!connected)return;armed=true;void publishFix();}
+ catch(e){if(epoch===generation){armed=false;status('Could not enable disconnect protection. Location not sent.');}}
+}
+async function publishFix(){
+ if(!joined||!sharing||!connected||!armed||writing||!fix||Date.now()-fix.time>30000||Date.now()-lastSent<10000)return;
+ writing=true;lastSent=Date.now();const generation=epoch;
+ try{await set(ownRef(),{name,lat:fix.lat,lng:fix.lng,accuracy:fix.accuracy,updatedAt:serverTimestamp()});if(generation===epoch&&sharing&&connected)status('Sharing live · GPS accuracy '+Math.round(fix.accuracy*3.28084)+' ft');}
+ catch(e){if(generation===epoch)status('Location update failed: '+(e.message||'Check connection'));}
+ finally{writing=false;}
+}
+async function stopSharing(){
+ sharing=false;armed=false;epoch++;updateSharing();
+ if(!uid)return;
+ if(!connected){status('Sharing stopped locally. Server cleanup pending until connection or disconnect detection.');void remove(ownRef()).catch(()=>{});return;}
+ try{await remove(ownRef());status('Sharing off. Your shared location was removed.');}
+ catch(e){status('Sharing stopped locally. Could not confirm server removal.');}
+}
+$('share').onclick=()=>{
+ if(sharing){void stopSharing();return;}
+ if(!connected){status('Connect to the internet before sharing.');return;}
+ if(!startGPS())return;
+ sharing=true;armed=false;epoch++;lastSent=0;updateSharing();status('Preparing live sharing...');void arm();
 };
-
+$('logout').onclick=async()=>{
+ if(busy)return;
+ if(!connected){status('Stop sharing now or reconnect to leave the group completely.');if(sharing)void stopSharing();return;}
+ busy=true;$('logout').disabled=true;updateSharing();
+ try{await stopSharing();await remove(memberRef());await signOut(auth);if(unsubscribe)unsubscribe();joined=false;uid=null;locations={};for(const m of markers.values())m.remove();markers.clear();if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;fix=null;if(ownMarker)ownMarker.remove();if(circle)circle.remove();ownMarker=null;circle=null;storage.clear();$('app').hidden=true;$('login').hidden=false;$('name').value='';$('password').value='';$('error').textContent='';}
+ catch(e){status('Could not finish leaving: '+e.message);}
+ finally{busy=false;$('logout').disabled=false;updateSharing();}
+};
+onValue(ref(db,'.info/serverTimeOffset'),s=>{offset=s.val()||0;});
+onValue(ref(db,'.info/connected'),s=>{connected=s.val()===true;connection();if(!connected){armed=false;if(sharing)status('Offline · location updates paused.');}else if(sharing){lastSent=0;void arm();}render();});
+setInterval(()=>{render();void publishFix();if(sharing&&connected&&fix&&Date.now()-fix.time>30000)status('GPS update stale · waiting for a fresh fix');},5000);
+try{
+ await auth.authStateReady();
+ uid=auth.currentUser?.uid||null; name=storage.get();$('name').value=name;
+ if(uid&&name){try{await get(ref(db,'locations'));openMap();}catch{ $('error').textContent='Enter the group password again.'; }}else $('error').textContent='';
+}catch(e){$('error').textContent='Connection error: '+e.message;}
 </script>
 </body>
 </html>

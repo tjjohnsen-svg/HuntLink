@@ -1,0 +1,43 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "config": {
+      ".read": false,
+      ".write": false
+    },
+    "members": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (newData.isString() && root.child('config/groupPassword').isString() && newData.val() === root.child('config/groupPassword').val()))"
+      }
+    },
+    "locations": {
+      ".read": "auth != null && root.child('config/groupPassword').isString() && root.child('members').child(auth.uid).val() === root.child('config/groupPassword').val()",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (root.child('config/groupPassword').isString() && root.child('members').child(auth.uid).val() === root.child('config/groupPassword').val()))",
+        ".validate": "newData.hasChildren(['name', 'lat', 'lng', 'accuracy', 'updatedAt'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+        },
+        "lat": {
+          ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+        },
+        "lng": {
+          ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+        },
+        "accuracy": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "measuredAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 5000"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

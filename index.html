@@ -18,7 +18,7 @@
 </style>
 </head>
 <body>
-<section id="login"><form id="loginForm"><h1>🌲 HuntLink</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit">Enter HuntLink</button><p>Sharing is off until you turn it on.  Everyone with the group password can see your shared location.</p><div id="error" role="status">Connecting...</div></form></section>
+<section id="login"><form id="loginForm"><h1>🌲 HuntLink</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit" disabled>Enter HuntLink</button><p>Sharing is off until you turn it on.  Everyone with the group password can see your shared location.</p><button id="retryLeave" type="button" hidden>Retry server cleanup</button><div id="error" role="status">Connecting...</div></form></section>
 <section id="app" hidden><header><div><h1>🌲 HuntLink</h1><div id="connection">Connecting...</div></div><button id="logout">Leave group</button></header><div id="map"></div><div id="panel"><div id="status" role="status">GPS not started. Sharing off.</div><div class="buttons"><button id="locate">◎ My location</button><button id="share" class="primary">Start sharing</button></div><div id="friends"></div><div id="notice">Keep this page open. GPS sharing needs internet and is not a safety or emergency service.</div></div></section>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
@@ -43,6 +43,7 @@ L.control.scale({metric:false,imperial:true}).addTo(map);
 let uid=null, name='', joined=false, connected=false, offset=0, unsubscribe=null;
 let ownMarker=null, circle=null, watch=null, fix=null, sharing=false, armed=false, writing=false, lastSent=0, epoch=0;
 let locations={}, markers=new Map(), busy=false;
+let lastFixSent=null, watchGeneration=0, pendingLeave=null, finishingLeave=false;
 const storage={get(){try{return localStorage.getItem('huntlinkName')||''}catch{return ''}},set(v){try{localStorage.setItem('huntlinkName',v)}catch{}},clear(){try{localStorage.removeItem('huntlinkName')}catch{}}};
 const memberRef=()=>ref(db,'members/'+uid), ownRef=()=>ref(db,'locations/'+uid);
 function status(s){$('status').textContent=s}
@@ -54,9 +55,14 @@ function render(){
  const seen=new Set(); $('friends').replaceChildren();
  for(const [id,p] of Object.entries(locations||{})){
   if(id===uid||!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||!Number.isFinite(p.updatedAt))continue;
-  const age=Math.max(0,(Date.now()+offset-p.updatedAt)/1000);
+  const measured=Number.isFinite(p.measuredAt);
+  const time=measured?Math.min(p.measuredAt,p.updatedAt):p.updatedAt;
+  const age=Math.max(0,(Date.now()+offset-time)/1000);
   if(age>120)continue;
-  const live=age<30&&connected, label=String(p.name||'Hunter')+' · '+Math.floor(age)+'s ago';
+  const live=measured&&age<30&&connected;
+  const when=(measured?(live?'GPS fix ':'Last seen '):'Received ')+Math.floor(age)+'s ago';
+  const accuracy=Number.isFinite(p.accuracy)&&p.accuracy>=0?' · ±'+Math.round(p.accuracy*3.28084)+' ft':'';
+  const label=String(p.name||'Hunter')+' · '+when+accuracy;
   seen.add(id); let marker=markers.get(id);
   if(!marker){marker=L.circleMarker([p.lat,p.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1});marker.addTo(map);marker.bindTooltip(safeText(label),{permanent:true,direction:'top',className:'hunter-label'});markers.set(id,marker);}
   marker.setLatLng([p.lat,p.lng]);marker.setStyle({fillColor:live?'#39b66b':'#929a9f'});marker.setTooltipContent(safeText(label));
@@ -66,13 +72,16 @@ function render(){
  if(!seen.size)$('friends').append(safeText('No other recent shared locations.'));
 }
 function openMap(){
+ status('GPS not started. Sharing off.');
  joined=true; $('login').hidden=true; $('app').hidden=false; $('error').textContent=''; connection(); updateSharing();
  requestAnimationFrame(()=>map.invalidateSize());
  if(unsubscribe)unsubscribe();
  unsubscribe=onValue(ref(db,'locations'),s=>{locations=s.val()||{};render()},()=>{locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
 }
 async function enter(e){
- e.preventDefault(); if(busy)return;busy=true;$('enter').disabled=true;$('error').textContent='Checking group password...';
+ e.preventDefault(); if(busy||finishingLeave)return;
+ if(pendingLeave){await finishLeave();return;}
+ busy=true;$('enter').disabled=true;$('error').textContent='Checking group password...';
  try{
   name=$('name').value.trim(); if(!name||name.length>50)throw new Error('Enter your name.');
   if(!auth.currentUser)await signInAnonymously(auth);uid=auth.currentUser.uid;
@@ -87,15 +96,22 @@ function startGPS(){
  if(!navigator.geolocation){status('GPS is unavailable.');return false;}
  if(watch!==null)return true;
  status('Finding your location...');
+ const generation=++watchGeneration;
  watch=navigator.geolocation.watchPosition(p=>{
+  if(!joined||generation!==watchGeneration)return;
   const {latitude:lat,longitude:lng,accuracy}=p.coords;
-  fix={lat,lng,accuracy,time:p.timestamp};
+  if(!Number.isFinite(p.timestamp)||p.timestamp>Date.now()||(fix&&p.timestamp<fix.time))return;
+  fix={lat,lng,accuracy,time:p.timestamp,measuredAt:Math.round(p.timestamp+offset)};
   if(!ownMarker){circle=L.circle([lat,lng],{radius:accuracy,color:'#1683ff',weight:1,fillOpacity:.12}).addTo(map);ownMarker=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:3,fillColor:'#1683ff',fillOpacity:1}).addTo(map).bindTooltip('You',{permanent:true,direction:'top',className:'hunter-label'});map.setView([lat,lng],16);}
   else{ownMarker.setLatLng([lat,lng]);circle.setLatLng([lat,lng]).setRadius(accuracy);}
   if(!sharing)status('GPS accuracy: '+Math.round(accuracy*3.28084)+' ft · Sharing off');
   else if(!connected)status('Offline · not sending your location');
   void publishFix();
- },e=>{status('GPS unavailable: '+e.message);if(e.code===1){navigator.geolocation.clearWatch(watch);watch=null;if(sharing)void stopSharing();}},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+ },e=>{
+  if(!joined||generation!==watchGeneration)return;
+  status('GPS unavailable: '+e.message);
+  if(e.code===1){if(sharing)void stopSharing();else stopGPS();}
+ },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
  return true;
 }
 $('locate').onclick=()=>{if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
@@ -107,40 +123,107 @@ async function arm(){
 }
 async function publishFix(){
  if(!joined||!sharing||!connected||!armed||writing||!fix||Date.now()-fix.time>30000||Date.now()-lastSent<10000)return;
- writing=true;lastSent=Date.now();const generation=epoch;
- try{await set(ownRef(),{name,lat:fix.lat,lng:fix.lng,accuracy:fix.accuracy,updatedAt:serverTimestamp()});if(generation===epoch&&sharing&&connected)status('Sharing live · GPS accuracy '+Math.round(fix.accuracy*3.28084)+' ft');}
- catch(e){if(generation===epoch)status('Location update failed: '+(e.message||'Check connection'));}
+ if(fix.time===lastFixSent)return;
+ const sample=fix, generation=epoch;
+ writing=true;lastSent=Date.now();
+ try{
+  await set(ownRef(),{name,lat:sample.lat,lng:sample.lng,accuracy:sample.accuracy,measuredAt:sample.measuredAt,updatedAt:serverTimestamp()});
+  if(generation===epoch&&sharing&&connected){
+   lastFixSent=sample.time;
+   if(Date.now()-sample.time<=30000)status('Sharing live · GPS accuracy '+Math.round(sample.accuracy*3.28084)+' ft');
+   else status('GPS update stale · waiting for a fresh fix');
+  }
+ }catch(e){if(generation===epoch)status('Location update failed: '+(e.message||'Check connection'));}
  finally{writing=false;}
 }
+function stopGPS(){
+ watchGeneration++;
+ if(watch!==null)navigator.geolocation.clearWatch(watch);
+ watch=null;fix=null;
+ if(ownMarker)ownMarker.remove();
+ if(circle)circle.remove();
+ ownMarker=null;circle=null;
+}
+function stopLocally(){
+ sharing=false;armed=false;epoch++;stopGPS();updateSharing();
+}
 async function stopSharing(){
- sharing=false;armed=false;epoch++;updateSharing();
- if(!uid)return;
- if(!connected){status('Sharing stopped locally. Server cleanup pending until connection or disconnect detection.');void remove(ownRef()).catch(()=>{});return;}
- try{await remove(ownRef());status('Sharing off. Your shared location was removed.');}
- catch(e){status('Sharing stopped locally. Could not confirm server removal.');}
+ stopLocally();
+ const generation=epoch;
+ status('Sharing stopped on this phone. Server removal pending.');
+ try{
+  await remove(ownRef());
+  if(epoch===generation)status('Sharing off. Your shared location was removed.');
+ }catch{
+  if(epoch===generation)status('Sharing stopped locally. Could not confirm server removal.');
+ }
 }
 $('share').onclick=()=>{
  if(sharing){void stopSharing();return;}
  if(!connected){status('Connect to the internet before sharing.');return;}
  if(!startGPS())return;
- sharing=true;armed=false;epoch++;lastSent=0;updateSharing();status('Preparing live sharing...');void arm();
+ sharing=true;armed=false;epoch++;lastSent=0;lastFixSent=null;updateSharing();status('Preparing live sharing...');void arm();
 };
-$('logout').onclick=async()=>{
- if(busy)return;
- if(!connected){status('Stop sharing now or reconnect to leave the group completely.');if(sharing)void stopSharing();return;}
- busy=true;$('logout').disabled=true;updateSharing();
- try{await stopSharing();await remove(memberRef());await signOut(auth);if(unsubscribe)unsubscribe();joined=false;uid=null;locations={};for(const m of markers.values())m.remove();markers.clear();if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;fix=null;if(ownMarker)ownMarker.remove();if(circle)circle.remove();ownMarker=null;circle=null;storage.clear();$('app').hidden=true;$('login').hidden=false;$('name').value='';$('password').value='';$('error').textContent='';}
- catch(e){status('Could not finish leaving: '+e.message);}
- finally{busy=false;$('logout').disabled=false;updateSharing();}
+// Retain only the anonymous ID needed to retry an interrupted leave after reload.
+function showPendingLeave(){
+ $('retryLeave').hidden=!pendingLeave;
+ $('retryLeave').disabled=!connected||finishingLeave;
+ $('enter').disabled=!!pendingLeave;
+}
+function rememberLeave(id){
+ pendingLeave=id;showPendingLeave();
+ try{
+  if(id)localStorage.setItem('huntlinkPendingLeave',id);
+  else localStorage.removeItem('huntlinkPendingLeave');
+ }catch{}
+}
+async function finishLeave(){
+ if(!pendingLeave||finishingLeave||!connected)return;
+ finishingLeave=true;showPendingLeave();
+ try{
+  let confirmed=auth.currentUser?.uid===pendingLeave;
+  if(confirmed){
+   // Revoked members can lose delete permission. Always try both removals.
+   for(const path of ['locations/','members/']){
+    try{await remove(ref(db,path+pendingLeave));}
+    catch(e){
+     if(String(e.code).toLowerCase().replaceAll('_','-')!=='permission-denied')throw e;
+     confirmed=false;
+    }
+   }
+   await signOut(auth);
+  }
+  rememberLeave(null);
+  $('error').textContent=confirmed?'You have left the group.':'Signed out on this phone. Server cleanup could not be confirmed.';
+ }catch{
+  $('error').textContent='You left on this phone. Server cleanup is pending. Retry when connected.';
+ }finally{finishingLeave=false;showPendingLeave();}
+}
+$('retryLeave').onclick=finishLeave;
+$('logout').onclick=()=>{
+ if(!joined||busy)return;
+ rememberLeave(uid);storage.clear();
+ joined=false;stopLocally();
+ if(unsubscribe)unsubscribe();
+ unsubscribe=null;locations={};
+ for(const marker of markers.values())marker.remove();
+ markers.clear();$('friends').replaceChildren();
+ uid=null;name='';$('name').value='';$('password').value='';
+ $('app').hidden=true;$('login').hidden=false;
+ $('error').textContent='You left on this phone. Server cleanup is pending until connected.';
+ void finishLeave();
 };
 onValue(ref(db,'.info/serverTimeOffset'),s=>{offset=s.val()||0;});
-onValue(ref(db,'.info/connected'),s=>{connected=s.val()===true;connection();if(!connected){armed=false;if(sharing)status('Offline · location updates paused.');}else if(sharing){lastSent=0;void arm();}render();});
+onValue(ref(db,'.info/connected'),s=>{connected=s.val()===true;connection();if(pendingLeave)showPendingLeave();if(!connected){armed=false;if(sharing){epoch++;status('Offline · location updates paused.');}}else if(pendingLeave){void finishLeave();}else if(sharing){lastSent=0;void arm();}render();});
 setInterval(()=>{render();void publishFix();if(sharing&&connected&&fix&&Date.now()-fix.time>30000)status('GPS update stale · waiting for a fresh fix');},5000);
 try{
  await auth.authStateReady();
  uid=auth.currentUser?.uid||null; name=storage.get();$('name').value=name;
- if(uid&&name){try{await get(ref(db,'locations'));openMap();}catch{ $('error').textContent='Enter the group password again.'; }}else $('error').textContent='';
+ try{pendingLeave=localStorage.getItem('huntlinkPendingLeave');}catch{}
+ if(pendingLeave){storage.clear();name='';$('name').value='';$('error').textContent='You left on this phone. Server cleanup is pending until connected.';await finishLeave();}
+ else if(uid&&name){try{await get(ref(db,'locations'));openMap();}catch{ $('error').textContent='Enter the group password again.'; }}else $('error').textContent='';
 }catch(e){$('error').textContent='Connection error: '+e.message;}
+showPendingLeave();
 </script>
  
 <script>

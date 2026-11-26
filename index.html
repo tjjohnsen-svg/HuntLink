@@ -1,0 +1,180 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HuntLink</title>
+
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #18251c;
+  }
+  header {
+    height: 56px;
+    background: #18251c;
+    color: white;
+    padding: 15px;
+    font-size: 23px;
+    font-weight: bold;
+  }
+  #map {
+    height: calc(100dvh - 56px);
+    width: 100%;
+  }
+  #locate {
+    position: absolute;
+    bottom: 42px;
+    right: 15px;
+    z-index: 1000;
+    padding: 15px 22px;
+    background: #18251c;
+    color: white;
+    border: 1px solid #888;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  #status {
+    position: absolute;
+    top: 66px;
+    left: 55px;
+    z-index: 1000;
+    background: #18251c;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    max-width: 180px;
+  }
+</style>
+</head>
+
+<body>
+
+<header>🌲 HuntLink</header>
+<div id="map"></div>
+<div id="status">GPS not started</div>
+<button id="locate">◎ My Location</button>
+
+<script>
+
+const aerial = L.tileLayer(
+  'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+  {
+    maxNativeZoom: 16,
+    maxZoom: 19,
+    attribution: 'USGS National Map / USDA'
+  }
+);
+
+const topo = L.tileLayer(
+  'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+  {
+    maxNativeZoom: 16,
+    maxZoom: 19,
+    attribution: 'USGS National Map'
+  }
+);
+
+const map = L.map('map', {
+  center: [48.0, -116.85],
+  zoom: 12,
+  layers: [aerial],
+  maxZoom: 19
+});
+
+L.control.layers({
+  "Aerial": aerial,
+  "Topographic": topo
+}).addTo(map);
+
+L.control.scale({
+  metric: false,
+  imperial: true
+}).addTo(map);
+
+let marker;
+let accuracyCircle;
+let firstFix = true;
+let watchId = null;
+
+document.getElementById('locate').onclick = function() {
+
+  if (!navigator.geolocation) {
+    document.getElementById('status').textContent =
+      "GPS unavailable";
+    return;
+  }
+
+  if (watchId !== null) {
+    if (marker) map.setView(marker.getLatLng(), 16);
+    return;
+  }
+
+  document.getElementById('status').textContent =
+    "Finding your location...";
+
+  watchId = navigator.geolocation.watchPosition(
+    function(position) {
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = position.coords.accuracy;
+
+      if (!marker) {
+        marker = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: 'white',
+          weight: 3,
+          fillColor: '#1683ff',
+          fillOpacity: 1
+        }).addTo(map).bindPopup("You");
+
+        accuracyCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: '#1683ff',
+          weight: 1,
+          fillOpacity: 0.12
+        }).addTo(map);
+      } else {
+        marker.setLatLng([lat, lng]);
+        accuracyCircle.setLatLng([lat, lng]);
+        accuracyCircle.setRadius(accuracy);
+      }
+
+      if (firstFix) {
+        map.setView([lat, lng], 16);
+        firstFix = false;
+      }
+
+      document.getElementById('status').textContent =
+        "GPS accuracy: " +
+        Math.round(accuracy * 3.28084) + " ft";
+
+    },
+    function(error) {
+      document.getElementById('status').textContent =
+        "GPS unavailable: " + error.message;
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 20000
+    }
+  );
+};
+
+</script>
+</body>
+</html>

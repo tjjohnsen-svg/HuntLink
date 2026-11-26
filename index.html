@@ -142,5 +142,14 @@ try{
  if(uid&&name){try{await get(ref(db,'locations'));openMap();}catch{ $('error').textContent='Enter the group password again.'; }}else $('error').textContent='';
 }catch(e){$('error').textContent='Connection error: '+e.message;}
 </script>
+ 
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(() => console.log('HuntLink service worker registered'))
+    .catch(error => console.error('Service worker failed:', error));
+}
+</script>
+
 </body>
 </html>

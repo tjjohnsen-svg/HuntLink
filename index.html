@@ -92,10 +92,10 @@ async function enter(e){
  finally{busy=false;$('enter').disabled=false;updateSharing();}
 }
 $('loginForm').addEventListener('submit',enter);
-function startGPS(){
+function startGPS(highAccuracy=true){
  if(!navigator.geolocation){status('GPS is unavailable.');return false;}
  if(watch!==null)return true;
- status('Finding your location...');
+ status(highAccuracy?'Finding your location...':'Trying standard location accuracy...');
  const generation=++watchGeneration;
  watch=navigator.geolocation.watchPosition(p=>{
   if(!joined||generation!==watchGeneration)return;
@@ -109,9 +109,20 @@ function startGPS(){
   void publishFix();
  },e=>{
   if(!joined||generation!==watchGeneration)return;
-  status('GPS unavailable: '+e.message);
-  if(e.code===1){if(sharing)void stopSharing();else stopGPS();}
- },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  if(e.code===1){
+   const message='Allow location access in your device and browser settings, then tap My location.';
+   if(sharing)void stopSharing(message);
+   else{stopGPS();status(message);}
+   return;
+  }
+  if(highAccuracy&&(e.code===2||e.code===3)){
+   stopGPS();startGPS(false);
+   return;
+  }
+  const message='No location fix. Check device Location Services, then tap My location to retry.';
+  if(sharing)void stopSharing(message);
+  else{stopGPS();status(message);}
+ },{enableHighAccuracy:highAccuracy,maximumAge:5000,timeout:20000});
  return true;
 }
 $('locate').onclick=()=>{if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
@@ -124,16 +135,16 @@ async function arm(){
 async function publishFix(){
  if(!joined||!sharing||!connected||!armed||writing||!fix||Date.now()-fix.time>30000||Date.now()-lastSent<10000)return;
  if(fix.time===lastFixSent)return;
- const sample=fix, generation=epoch;
+ const sample=fix, generation=epoch, gpsGeneration=watchGeneration;
  writing=true;lastSent=Date.now();
  try{
   await set(ownRef(),{name,lat:sample.lat,lng:sample.lng,accuracy:sample.accuracy,measuredAt:sample.measuredAt,updatedAt:serverTimestamp()});
-  if(generation===epoch&&sharing&&connected){
+  if(generation===epoch&&gpsGeneration===watchGeneration&&sharing&&connected){
    lastFixSent=sample.time;
    if(Date.now()-sample.time<=30000)status('Sharing live · GPS accuracy '+Math.round(sample.accuracy*3.28084)+' ft');
    else status('GPS update stale · waiting for a fresh fix');
   }
- }catch(e){if(generation===epoch)status('Location update failed: '+(e.message||'Check connection'));}
+ }catch(e){if(generation===epoch&&gpsGeneration===watchGeneration)status('Location update failed: '+(e.message||'Check connection'));}
  finally{writing=false;}
 }
 function stopGPS(){
@@ -147,15 +158,16 @@ function stopGPS(){
 function stopLocally(){
  sharing=false;armed=false;epoch++;stopGPS();updateSharing();
 }
-async function stopSharing(){
+async function stopSharing(guidance=''){
  stopLocally();
  const generation=epoch;
- status('Sharing stopped on this phone. Server removal pending.');
+ const prefix=guidance?guidance+' ':'';
+ status(prefix+'Sharing stopped on this phone. Server removal pending.');
  try{
   await remove(ownRef());
-  if(epoch===generation)status('Sharing off. Your shared location was removed.');
+  if(epoch===generation)status(prefix+'Sharing off. Your shared location was removed.');
  }catch{
-  if(epoch===generation)status('Sharing stopped locally. Could not confirm server removal.');
+  if(epoch===generation)status(prefix+'Sharing stopped locally. Could not confirm server removal.');
  }
 }
 $('share').onclick=()=>{

@@ -1,12 +1,38 @@
+const scope = self.registration.scope;
+const shell = 'huntlink-offline-topo-v1:' + scope;
+const viewer = new URL('offline.html', scope).href;
+const files = ['offline.html', 'offline.js', 'offline-states.json', 'vendor/leaflet/leaflet.css',
+  'vendor/leaflet/leaflet.js', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
+const urls = new Set(files.map(file => new URL(file, scope).href));
 
 self.addEventListener('install', event => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil((async () => {
+    const cache = await caches.open(shell);
+    await cache.addAll([...urls].map(url => new Request(url, {cache: 'reload'})));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    for (const key of await caches.keys()) {
+      if (key.startsWith('huntlink-offline-topo-') && key.endsWith(':' + scope) && key !== shell) await caches.delete(key);
+    }
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', event => {
-  // Continue using normal network requests.
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  url.search = '';
+  if (urls.has(url.href)) {
+    event.respondWith(caches.open(shell).then(async cache => (await cache.match(url.href)) || fetch(request)));
+  } else if (request.mode === 'navigate' && [scope, new URL('index.html', scope).href].includes(url.href)) {
+    event.respondWith((async () => {
+      try { return await fetch(request); }
+      catch { return Response.redirect(viewer); }
+    })());
+  }
 });

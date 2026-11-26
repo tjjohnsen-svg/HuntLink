@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#192b23">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+<title>Offline topo · HuntLink</title>
+<style>
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#192b23;color:#fff;font:16px system-ui,sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column}
+header,section{padding:10px 14px}header,.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}h1{font-size:21px;margin:0}header a{margin-left:auto;color:#daf5d9}#map{flex:1;min-height:120px;background:#45584f}
+section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;overflow:auto}p{margin:4px 0 8px}button{padding:10px 12px;border:0;border-radius:8px;background:#e8eee9;color:#192b23;font:600 15px system-ui;cursor:pointer}button.primary{background:#c7e79a}button:disabled{opacity:.55}#status,#gps{font-size:14px}progress{width:100%}
+</style>
+<script defer src="./vendor/leaflet/leaflet.js"></script>
+<script type="module" src="./offline.js"></script>
+</head>
+<body>
+<header><h1>Offline topo</h1><a href="./">Group map</a></header>
+<div id="map" aria-label="Topographic map"></div>
+<section>
+<p id="status" role="status">Opening maps…</p>
+<progress id="progress" hidden></progress>
+<div class="actions">
+<button id="download" class="primary" hidden>Download area</button>
+<button id="cancel" hidden>Cancel download</button>
+<button id="saved" hidden>Open saved area</button>
+<button id="locate" class="primary" hidden>My location</button>
+<button id="choose" hidden>Choose area</button>
+<button id="delete" hidden>Delete saved area</button>
+</div>
+<p id="gps" role="status"></p>
+</section>
+</body></html>

@@ -1,2 +1,3 @@
 /.codex-attachments/
 __pycache__/
+node_modules/

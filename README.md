@@ -9,7 +9,7 @@ Free private GPS location sharing for hunting groups.
 | Public-land parcels and map styling | `public-land.js` |
 | Offline area selection, downloads and private GPS | `offline.html`, `offline.js`, `offline-states.json` |
 | Private named waypoints | `waypoints.js` |
-| Offline startup and installation | `sw.js`, `manifest.webmanifest`, icons and `vendor/leaflet/` |
+| Offline startup and installation | `sw.js`, `manifest.webmanifest`, icons, `vendor/leaflet/` and `vendor/firebase/` (bundled SDK, see its README) |
 | Firebase location and membership permissions | `database.rules.json` |
 | Browser and Firebase emulator tests | [QA instructions](_qa/README.md) |
 | Project requirements and release approvals | [AGENTS.md](AGENTS.md) |

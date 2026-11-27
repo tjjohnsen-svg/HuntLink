@@ -12,7 +12,7 @@
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#192b23;color:#fff;font:16px system-ui,sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column}
 header,section{padding:10px 14px}header,.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}h1{font-size:21px;margin:0}header a{margin-left:auto;color:#daf5d9}#map{flex:1;min-height:120px;background:#45584f}
 section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;overflow:auto}p{margin:4px 0 8px}button{padding:10px 12px;border:0;border-radius:8px;background:#e8eee9;color:#192b23;font:600 15px system-ui;cursor:pointer}button.primary{background:#c7e79a}button:disabled{opacity:.55}#status,#gps{font-size:14px}progress{width:100%}
-#waypoints{margin:8px 0}#waypoints summary{cursor:pointer;padding:8px 0;font-weight:650}#waypoints select{font:inherit;max-width:100%;padding:8px;margin:6px 0}#waypointHint,#returnInfo{font-size:14px}#returnInfo:empty{display:none}
+#areaPick,#groupOption{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0;font-size:15px}#areaList{font:inherit;padding:8px;max-width:100%}#groupOption input{width:22px;height:22px}#waypoints{margin:8px 0}#waypoints summary{cursor:pointer;padding:8px 0;font-weight:650}#waypoints select{font:inherit;max-width:100%;padding:8px;margin:6px 0}#waypointHint,#returnInfo{font-size:14px}#returnInfo:empty{display:none}
 </style>
 <link rel="stylesheet" href="./map-nav.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
@@ -26,16 +26,19 @@ section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;ove
   <button id="stopGps" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg><span>Stop GPS</span></button>
   <button id="download" class="primary" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><span>Download area</span></button>
   <button id="cancel" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg><span>Cancel download</span></button>
+  <button id="resume" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg><span>Resume download</span></button>
   <button id="saved" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-7-5-7 5z"/></svg><span>Open saved area</span></button>
   <button id="waypointTool" aria-controls="waypoints" aria-expanded="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Waypoints</span></button>
   <button id="choose" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8V3h5m8 0h5v5m0 8v5h-5m-8 0H3v-5"/><circle cx="12" cy="12" r="3"/></svg><span>Choose area</span></button>
-  <button id="delete" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15m-9 4v7m4-7v7"/></svg><span>Delete saved area</span></button>
+  <button id="delete" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15m-9 4v7m4-7v7"/></svg><span>Delete this area</span></button>
 </nav>
 <div id="map" aria-label="Topographic map"></div>
 <section>
 <p id="status" role="status">Opening maps…</p>
 <label id="landOption" hidden><input id="landToggle" type="checkbox" checked> <span id="landLabel">Include public-land boundaries</span></label>
 <p id="landNote" hidden></p>
+<label id="areaPick" hidden>Saved areas <select id="areaList"></select></label>
+<label id="groupOption" hidden><input id="groupToggle" type="checkbox" checked> Show group's last known spots (saved on this phone)</label>
 <progress id="progress" hidden></progress>
 <p id="gps" role="status"></p>
 <details id="waypoints" hidden>

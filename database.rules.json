@@ -14,7 +14,7 @@
     "locations": {
       ".read": "auth != null && root.child('config/groupPassword').isString() && root.child('members').child(auth.uid).val() === root.child('config/groupPassword').val()",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (root.child('config/groupPassword').isString() && root.child('members').child(auth.uid).val() === root.child('config/groupPassword').val()))",
+        ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || (root.child('config/groupPassword').isString() && root.child('members').child(auth.uid).val() === root.child('config/groupPassword').val()))) || (!newData.exists() && data.child('updatedAt').isNumber() && data.child('updatedAt').val() < now - 21600000 && root.child('config/groupPassword').isString() && root.child('members').child(auth.uid).val() === root.child('config/groupPassword').val()))",
         ".validate": "newData.hasChildren(['name', 'lat', 'lng', 'accuracy', 'updatedAt'])",
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"

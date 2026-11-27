@@ -8,7 +8,7 @@ const onlineTiles = L.tileLayer(topo, {attribution, maxNativeZoom: 16, maxZoom: 
 const footprint = L.rectangle([[0,0],[0,0]], {color:'#9b3900',weight:3,fill:false,interactive:false});
 L.control.scale({metric:false}).addTo(map);
 let db, states, area, plan, localTiles, controller, viewing = false;
-let watch = null, generation = 0, marker, accuracyCircle;
+let watch = null, generation = 0, marker, accuracyCircle, lastPosition;
 
 const waypoints = setupWaypoints(map, $, () => area && L.latLngBounds(area.bounds));
 
@@ -74,7 +74,8 @@ function controls() {
   $('saved').hidden = viewing || !area || !!controller;
   $('choose').hidden = !viewing;
   $('delete').hidden = !viewing;
-  $('locate').hidden = !viewing;
+  $('locate').hidden = !!controller;
+  $('stopGps').hidden = watch===null;
   $('progress').hidden = !controller;
 }
 function stopGPS() {
@@ -82,26 +83,36 @@ function stopGPS() {
   waypoints.setFix(null);
   if (watch!==null) navigator.geolocation.clearWatch(watch);
   watch=null; marker?.remove(); accuracyCircle?.remove(); marker=null; accuracyCircle=null;
-  $('locate').textContent='My location';
+  lastPosition=null; $('stopGps').hidden=true;
+}
+function displayPosition(position, center) {
+  const point=L.latLng(position.coords.latitude,position.coords.longitude);
+  const radius=position.coords.accuracy;
+  const covered=!viewing || L.latLngBounds(area.bounds).contains(point);
+  if (!marker) {
+    accuracyCircle=L.circle(point,{radius,color:'#1683ff',weight:1}).addTo(map);
+    marker=L.circleMarker(point,{radius:7,color:'white',fillColor:'#1683ff',fillOpacity:1}).bindTooltip('You').addTo(map);
+  } else { marker.setLatLng(point); accuracyCircle.setLatLng(point).setRadius(radius); }
+  if (center && covered) {
+    if (viewing) map.setView(point,16);
+    else map.setView(point,Math.max(12,Math.min(15,map.getBoundsZoom(point.toBounds(5000)))),{animate:false});
+  }
+  const precision='±'+Math.round(radius*3.28084)+' ft';
+  const time=new Date(position.timestamp).toLocaleTimeString();
+  $('gps').textContent=covered ? 'Your location · '+precision+' · Fix at '+time+' · Private'
+    : 'Your location is outside the downloaded area. '+point.lat.toFixed(5)+', '+point.lng.toFixed(5)+' · '+precision+' · Fix at '+time;
 }
 function startGPS(highAccuracy=true) {
   if (!navigator.geolocation) { $('gps').textContent='Location is unavailable on this device.'; return; }
   const token=++generation;
-  $('locate').textContent='Stop GPS';
+  $('stopGps').hidden=false;
   $('gps').textContent='Finding your location…';
   watch=navigator.geolocation.watchPosition(position => {
-    if (token!==generation || !viewing) return;
-    const point=L.latLng(position.coords.latitude,position.coords.longitude);
-    const radius=position.coords.accuracy;
+    if (token!==generation) return;
+    const first=!lastPosition;
+    lastPosition=position;
     waypoints.setFix(position);
-    if (!marker) {
-      accuracyCircle=L.circle(point,{radius,color:'#1683ff',weight:1}).addTo(map);
-      marker=L.circleMarker(point,{radius:7,color:'white',fillColor:'#1683ff',fillOpacity:1}).bindTooltip('You').addTo(map);
-      if (L.latLngBounds(area.bounds).contains(point)) map.setView(point,16);
-    } else { marker.setLatLng(point); accuracyCircle.setLatLng(point).setRadius(radius); }
-    $('gps').textContent=L.latLngBounds(area.bounds).contains(point)
-      ? 'Your location · ±'+Math.round(radius*3.28084)+' ft · Fix at '+new Date(position.timestamp || Date.now()).toLocaleTimeString()+' · Private'
-      : 'Your location is outside the downloaded area.';
+    displayPosition(position, first && !controller);
   }, error => {
     if (token!==generation) return;
     stopGPS();
@@ -132,7 +143,8 @@ function showSaved() {
   localTiles.on('tileerror',()=>{if(viewing)$('status').textContent='A saved tile is missing or unreadable. Download this area again before leaving coverage.';});
   footprint.setBounds(bounds).addTo(map);
   $('status').textContent=area.state+' · Saved topo · '+(area.bytes/1048576).toFixed(1)+' MB · '+new Date(area.date).toLocaleDateString();
-  $('gps').textContent='Tap My location for private GPS.';
+  if (lastPosition) displayPosition(lastPosition,false);
+  else if (watch===null) $('gps').textContent='Tap My location for private GPS.';
   controls();
 }
 function choose() {
@@ -192,7 +204,12 @@ async function download() {
   }
 }
 
-$('locate').onclick=()=>{if(watch===null) startGPS(); else {stopGPS();$('gps').textContent='GPS off.';}};
+$('locate').onclick=()=>{
+  if (watch===null) startGPS();
+  else if (lastPosition && Date.now()-lastPosition.timestamp<30000) displayPosition(lastPosition,true);
+  else if (lastPosition) { stopGPS(); startGPS(); }
+};
+$('stopGps').onclick=()=>{stopGPS();$('gps').textContent='GPS off.';};
 $('cancel').onclick=()=>controller?.abort();
 $('download').onclick=download;
 $('choose').onclick=choose;

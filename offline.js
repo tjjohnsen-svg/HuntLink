@@ -14,6 +14,18 @@ let watch = null, generation = 0, marker, accuracyCircle, lastPosition;
 const parcels = createParcelLayer(map,L);
 const waypoints = setupWaypoints(map, $, () => area && L.latLngBounds(area.bounds));
 
+// Resizing the status panel keeps the chosen area and its download message.
+new ResizeObserver(()=>{
+  map.off('moveend',updatePlan);
+  map.invalidateSize();
+  map.on('moveend',updatePlan);
+}).observe($('map'));
+$('waypointTool').onclick=()=>{ $('waypoints').open=!$('waypoints').open; };
+$('waypoints').addEventListener('toggle',()=>{
+  $('waypointTool').setAttribute('aria-expanded',String($('waypoints').open));
+  if ($('waypoints').open) $('waypoints').scrollIntoView({block:'nearest'});
+});
+
 function result(request) {
   return new Promise((resolve,reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -75,6 +87,7 @@ function controls() {
   $('cancel').hidden = !controller;
   $('saved').hidden = viewing || !area || !!controller;
   $('choose').hidden = !viewing;
+  $('waypointTool').hidden = !viewing;
   $('delete').hidden = !viewing;
   $('locate').hidden = !!controller;
   $('stopGps').hidden = watch===null;

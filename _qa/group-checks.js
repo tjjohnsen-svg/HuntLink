@@ -4,6 +4,13 @@ await join('denied');ok($('app').hidden&&$('error').textContent.includes('Incorr
 await join('test-only');ok(!$('app').hidden&&!running&&records.length===0,'join private');
 map.invalidateSize();const size=map.getSize();ok(size.x>200&&size.y>100,'usable map space');
 ok(document.documentElement.scrollWidth<=innerWidth,'portrait fits horizontally');map.removeLayer(aerial);map.addLayer(topo);ok(map.hasLayer(topo),'topo selectable');
+const rail=document.querySelector('#app nav');
+ok(rail.getBoundingClientRect().right<=map.getContainer().getBoundingClientRect().left+1,'navigation sits left of map');
+ok([...rail.children].every(tool=>tool.offsetHeight>=44 && tool.querySelector('svg') && tool.textContent.trim()),'labeled icon touch targets');
+$('layersTool').click();
+ok(!$('layerOptions').hidden && $('layerOptions').contains(layers.getContainer()),'layers accessible from navigation');
+$('huntersTool').click();
+ok(!$('friends').hidden && $('layerOptions').hidden && $('huntersTool').getAttribute('aria-expanded')==='true','hunter list opens from navigation');
 const read=()=>$('hunterReading').textContent;
 const fixAt=(lat,lng)=>gps({coords:{latitude:lat,longitude:lng,accuracy:4},timestamp:now});
 const peer=(lat,lng,extra={})=>({name:'Buddy',lat,lng,accuracy:4,measuredAt:now-7000,updatedAt:now,...extra});

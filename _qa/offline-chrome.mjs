@@ -40,6 +40,7 @@ function call(method,params={},sessionId=sid){return new Promise((yes,no)=>{wait
 async function page(url){
  tab=(await call('Target.createTarget',{url:'about:blank'},null)).targetId;
  sid=(await call('Target.attachToTarget',{targetId:tab,flatten:true},null)).sessionId;
+ await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  await call('Page.navigate',{url});
 }
 async function js(expression){const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||expression);return r.result.value;}
@@ -52,9 +53,9 @@ try {
  await call('Browser.grantPermissions',{origin:new URL(base).origin,permissions:['geolocation']},null);
  await call('Emulation.setGeolocationOverride',{latitude:43.615,longitude:-116.202,accuracy:8});
  await js("locate.click()");await until("gps.textContent.includes('Private')&&!download.disabled");
- assert(await js("testMap.getCenter().distanceTo([43.615,-116.202])<3 && !stopGps.hidden"));
+ assert(await js("testMap.latLngToContainerPoint([43.615,-116.202]).distanceTo(testMap.getSize().divideBy(2))<=1 && !stopGps.hidden"));
  await js("testMap.panTo([43.64,-116.25],{animate:false});locate.click();true");
- assert(await js("testMap.getCenter().distanceTo([43.615,-116.202])<3 && !download.disabled"));
+ assert(await js("testMap.latLngToContainerPoint([43.615,-116.202]).distanceTo(testMap.getSize().divideBy(2))<=1 && !download.disabled"));
  console.log('PASS initial picker GPS, center, recenter, and eligible download');
  await until("!document.getElementById('download').disabled");
  await js("document.getElementById('download').click()");await until("document.getElementById('status').textContent.includes('Idaho · Saved topo')");
@@ -66,7 +67,7 @@ try {
  assert(await js("document.querySelectorAll('.leaflet-publicLand-pane path').length===75"));missing=false;
  console.log('PASS all Idaho parcels retained after incomplete Washington response');
  assert( served>50 );console.log('Idaho pack saved');
- await js("window.prompt=()=> 'Gate';waypoints.open=true;pickPoint.click();testMap.fire('click',{latlng:testMap.getCenter()});true");
+ await js("window.prompt=()=> 'Gate';waypointTool.click();pickPoint.click();testMap.fire('click',{latlng:testMap.getCenter()});true");
  await until("pointList.selectedOptions[0]?.text==='Gate'");
  await js("document.getElementById('choose').click();testMap.setView([47.04,-122.90],14,{animate:false});document.getElementById('download').click();document.getElementById('cancel').click();true");
  await until("document.getElementById('status').textContent.includes('incomplete')");
@@ -95,11 +96,16 @@ try {
  await until("document.querySelector('.leaflet-popup-content')?.textContent.includes('Manager:')");
  await js("testMap.closePopup();landToggle.click();true");assert(await js("!document.querySelector('.leaflet-publicLand-pane path')"));
  await js("landToggle.click();true");assert(await js("document.querySelectorAll('.leaflet-publicLand-pane path').length===29"));
+ assert(await js("document.querySelector('nav').getBoundingClientRect().right <= testMap.getContainer().getBoundingClientRect().left+1 && waypointTool.offsetHeight>=44"));
+ await js("waypointTool.click()");
+ await until("waypoints.open && waypointTool.getAttribute('aria-expanded')==='true'");
+ await js("waypointTool.click()");
+ await until("!waypoints.open && waypointTool.getAttribute('aria-expanded')==='false'");
  console.log('PASS offline Washington geometry, parcel popup, and layer visibility');
  await call('Browser.grantPermissions',{origin:new URL(base).origin,permissions:['geolocation']},null);
  await call('Emulation.setGeolocationOverride',{latitude:47.04,longitude:-122.90,accuracy:8});
  await js("document.getElementById('locate').click()");await until("document.getElementById('gps').textContent.includes('Private')");
- await js("waypoints.open=true;window.prompt=()=> 'Truck';markGps.click();true");
+ await js("waypointTool.click();window.prompt=()=> 'Truck';markGps.click();true");
  await until("pointList.selectedOptions[0]?.text==='Truck'");
  assert(await js("returnInfo.textContent.includes('Within GPS accuracy')"));
  await js("window.realNow=Date.now;Date.now=()=>realNow()+60000;markGps.click();Date.now=realNow;true");
@@ -112,7 +118,7 @@ try {
  await js("window.prompt=()=> 'Base camp';renamePoint.click();true");
  await until("pointList.selectedOptions[0]?.text==='Base camp'");
  await close();await page(base);await until("Array.from(document.querySelector('#pointList')?.options||[]).some(o=>o.text==='Truck')");
- await js("waypoints.open=true;pointList.value=Array.from(pointList.options).find(o=>o.text==='Truck').value;pointList.dispatchEvent(new Event('change'));true");
+ await js("waypointTool.click();pointList.value=Array.from(pointList.options).find(o=>o.text==='Truck').value;pointList.dispatchEvent(new Event('change'));true");
  await until("Math.abs(testMap.getCenter().lat-47.04)<0.00003");
  await call('Emulation.setGeolocationOverride',{latitude:47.039,longitude:-122.90,accuracy:6});
  await js("locate.click()");await until("returnInfo.textContent.includes('yd N')");

@@ -38,6 +38,128 @@
           ".validate": false
         }
       }
+    },
+    "groups": {
+      "$gid": {
+        ".validate": "$gid.matches(/^[A-Za-z0-9_-]{12,32}$/)",
+        "info": {
+          ".read": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && ((!data.exists() && newData.child('leader').val() === auth.uid && newData.parent().child('members').child(auth.uid).child('role').val() === 'leader') || (data.exists() && newData.exists() && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader' && newData.child('leader').val() === data.child('leader').val() && newData.child('createdAt').val() === data.child('createdAt').val()))",
+          ".validate": "newData.hasChildren(['name','leader','createdAt','invite','code','codeExp'])",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          },
+          "leader": {
+            ".validate": "newData.isString()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() && newData.val() <= now"
+          },
+          "invite": {
+            ".validate": "newData.isString() && newData.parent().parent().parent().parent().child('invites').child(newData.val()).child('g').val() === $gid"
+          },
+          "code": {
+            ".validate": "newData.isString() && newData.val().matches(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/) && newData.parent().parent().parent().parent().child('codes').child(newData.val()).child('k').val() === newData.parent().child('invite').val()"
+          },
+          "codeExp": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "members": {
+          ".read": "auth != null && data.child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (!data.exists() && newData.child('role').val() === 'leader' && !data.parent().parent().child('info').exists() && newData.parent().parent().child('info').child('leader').val() === auth.uid) || (!data.exists() && newData.child('role').val() === 'member' && data.parent().parent().child('info').child('invite').isString() && newData.child('key').val() === data.parent().parent().child('info').child('invite').val()) || (data.exists() && newData.exists() && newData.child('role').val() === data.child('role').val() && newData.child('joinedAt').val() === data.child('joinedAt').val() && newData.child('key').val() === data.child('key').val()))",
+            ".validate": "newData.hasChildren(['name','role','joinedAt'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+            },
+            "role": {
+              ".validate": "newData.val() === 'leader' || newData.val() === 'member'"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber() && newData.val() <= now"
+            },
+            "key": {
+              ".validate": "newData.isString()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "locations": {
+          ".read": "auth != null && data.parent().child('members').child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || data.parent().parent().child('members').child(auth.uid).exists())) || (!newData.exists() && data.child('updatedAt').isNumber() && data.child('updatedAt').val() < now - 21600000 && data.parent().parent().child('members').child(auth.uid).exists()))",
+            ".validate": "newData.hasChildren(['name', 'lat', 'lng', 'accuracy', 'updatedAt'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+            },
+            "lat": {
+              ".validate": "newData.isNumber() && newData.val() >= -90 && newData.val() <= 90"
+            },
+            "lng": {
+              ".validate": "newData.isNumber() && newData.val() >= -180 && newData.val() <= 180"
+            },
+            "accuracy": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber() && newData.val() <= now"
+            },
+            "measuredAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 5000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+    "invites": {
+      "$key": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((newData.exists() && !data.exists() && newData.parent().parent().child('groups').child(newData.child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader' && newData.parent().parent().child('groups').child(newData.child('g').val()).child('info').child('invite').val() === $key) || (!newData.exists() && root.child('groups').child(data.child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader'))",
+        ".validate": "$key.matches(/^[A-Za-z0-9_-]{22,43}$/) && newData.hasChildren(['g','name','by'])",
+        "g": {
+          ".validate": "newData.isString()"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+        },
+        "by": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+        },
+        "people": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (!newData.exists() || newData.parent().parent().parent().parent().child('groups').child(newData.parent().parent().child('g').val()).child('members').child($uid).exists())",
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "codes": {
+      "$code": {
+        ".read": "auth != null && data.child('exp').val() > now",
+        ".write": "auth != null && ((newData.exists() && (!data.exists() || data.child('exp').val() < now || root.child('groups').child(root.child('invites').child(data.child('k').val()).child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader') && newData.parent().parent().child('groups').child(newData.parent().parent().child('invites').child(newData.child('k').val()).child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader') || (!newData.exists() && (data.child('exp').val() < now || root.child('groups').child(root.child('invites').child(data.child('k').val()).child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader')))",
+        ".validate": "$code.matches(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/) && newData.hasChildren(['k','exp'])",
+        "k": {
+          ".validate": "newData.isString()"
+        },
+        "exp": {
+          ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 259260000"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
     }
   }
 }

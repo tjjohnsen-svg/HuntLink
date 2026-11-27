@@ -24,6 +24,30 @@ baseChoices[0].click();
 ok(map.hasLayer(topo) && map.hasLayer(publicLand),'topo retains parcel overlay');
 parcelButtonInNav.click();
 ok(map.hasLayer(topo) && !map.hasLayer(publicLand) && $('landNotice').hidden && parcelButtonInNav.getAttribute('aria-pressed')==='false','parcels turn off independently');
+// Public land must not reload itself when the panel under the map changes height (QA finding C1),
+// and must keep what is shown during small pans. Synthetic squares only; the real service is never called.
+const waitReal=ms=>new Promise(r=>setTimeout(r,ms));
+const realFetch=window.fetch;
+let parcelCalls=0;
+const synthParcels=()=>{const c=map.getCenter(),features=[];for(let i=0;i<6;i++){const x=c.lng-.02+i*.007,y=c.lat-.005;
+ features.push({type:'Feature',properties:{OBJECTID:i+1,Loc_Nm:'Synthetic parcel '+(i+1),Mang_Name:'BLM',Own_Type:'FED',Pub_Access:'OA',GIS_Acres:600},
+ geometry:{type:'Polygon',coordinates:[[[x,y],[x+.005,y],[x+.005,y+.01],[x,y+.01],[x,y]]]}});}return {type:'FeatureCollection',features};};
+window.fetch=async()=>{parcelCalls++;const body=synthParcels();return {ok:true,json:async()=>body};};
+const parcelPaths=()=>document.querySelectorAll('.leaflet-publicLand-pane path').length;
+map.setView([46.5,-116.5],13,{animate:false});
+parcelButtonInNav.click();
+await waitReal(1500);
+ok(parcelCalls===1&&parcelPaths()===6,'public land loads once: '+parcelCalls+' requests, '+parcelPaths()+' parcels');
+$('landNotice').textContent+=' Extra text that wraps onto more lines and changes the panel height under the map.';
+map.invalidateSize();
+await waitReal(1500);
+ok(parcelCalls===1&&parcelPaths()===6,'panel height change does not reload public land: '+parcelCalls+' requests');
+map.panBy([40,0],{animate:false});
+ok(parcelPaths()===6,'parcels stay visible right after a small pan');
+await waitReal(800);
+ok(parcelCalls===1,'small pan reuses the loaded area');
+parcelButtonInNav.click();
+window.fetch=realFetch;
 $('huntersTool').click();
 ok(!$('friends').hidden && $('layerOptions').hidden && $('huntersTool').getAttribute('aria-expanded')==='true','hunter list opens from navigation');
 const read=()=>$('hunterReading').textContent;

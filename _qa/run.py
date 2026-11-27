@@ -26,7 +26,7 @@ def parcels(count, lat, lng):
 
 
 def prepare(work):
-    for name in ('offline.html', 'map-nav.css', 'offline.js', 'public-land.js', 'waypoints.js', 'sw.js',
+    for name in ('offline.html', 'map-nav.css', 'offline.js', 'public-land.js', 'waypoints.js', 'good-shit.js', 'sw.js',
                  'offline-states.json', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'):
         shutil.copy(ROOT/name, work/name)
     shutil.copytree(ROOT/'vendor', work/'vendor')
@@ -50,7 +50,8 @@ def prepare(work):
     module = 'const auth='+module.split('const auth=', 1)[1].split('</script>', 1)[0]
     module = re.sub(r"https://basemap[^']+", 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', module)
     layer = (ROOT/'public-land.js').read_text().replace('export ', '')
-    scripts = [(QA/'firebase-mock.js').read_text(), layer, module, (QA/'group-checks.js').read_text()]
+    scripts = [(QA/'firebase-mock.js').read_text(), layer,
+               (ROOT/'good-shit.js').read_text().split('\n',1)[1].replace('export ', ''), module, (QA/'group-checks.js').read_text()]
     (work/'group.html').write_text(header+'<script>(async()=>{try{\n'+'\n'.join(scripts)
                                   +"\n}catch(e){document.title='FAIL '+e.message}})()</script>")
 

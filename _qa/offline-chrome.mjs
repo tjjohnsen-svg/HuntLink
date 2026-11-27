@@ -126,6 +126,42 @@ try {
  await until("Math.abs(testMap.getCenter().lat-47.04)<0.00003");
  await call('Emulation.setGeolocationOverride',{latitude:47.039,longitude:-122.90,accuracy:6});
  await js("locate.click()");await until("returnInfo.textContent.includes('yd N')");
+ // Ask on a cold, disconnected viewer using the actual waypoint database.
+ await js("waypointTool.click(); localStorage.setItem('huntlinkLastKnown',JSON.stringify({hunters:[{name:'Jake',lat:47.041,lng:-122.90,time:Date.now()-10000}]}));window.dispatchEvent(new Event('pageshow'));true");
+ for (const width of [375,430,1024]) {
+  await call('Emulation.setDeviceMetricsOverride',{width,height:820,deviceScaleFactor:1,mobile:true});
+  await js("askTool.click();true");
+  await until("askSheet.textContent.includes('How far to Truck?')");
+  assert(await js("document.activeElement!==askSheet.querySelector('input') && askSheet.offsetWidth<=410 && Math.abs(askSheet.getBoundingClientRect().bottom-testMap.getContainer().getBoundingClientRect().bottom)<2"));
+  await js("askSheet.querySelector('.ask-list button').click();true");
+  await until("askSheet.textContent.includes('Jake is') && askSheet.textContent.includes('straight-line') && askSheet.textContent.includes('GPS fix age unknown')");
+  await js("askSheet.querySelector('input').focus();true");
+  // Model a reduced visual viewport while preserving the layout viewport.
+  assert(await js(`(()=>{
+   const vp=visualViewport, height=vp.height;
+   Object.defineProperty(vp,'height',{configurable:true,value:height-280});
+   vp.dispatchEvent(new Event('resize'));
+   const box=askSheet.querySelector('form').getBoundingClientRect();
+   const visible=box.bottom<=vp.height+vp.offsetTop+1 && box.height>=44;
+   delete vp.height; vp.dispatchEvent(new Event('resize')); return visible;
+  })()`));
+  await js("askSheet.querySelector('input').blur();askSheet.querySelector('[aria-label^=Close]').click();true");
+ }
+ await js("askTool.click();true");
+ await until("askSheet.textContent.includes('How far to Truck?')");
+ await js("[...askSheet.querySelectorAll('button')].find(b=>b.textContent==='How far to Truck?').click();true");
+ await until("askSheet.textContent.includes('Truck is')&&askSheet.textContent.includes('straight-line')");
+ const drag=await js("(()=>{const r=testMap.getContainer().getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+60}})()");
+ const camera=await js("testMap.getCenter().toString()");
+ await call('Input.dispatchMouseEvent',{type:'mousePressed',...drag,button:'left',clickCount:1});
+ await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:drag.x+45,y:drag.y+20,buttons:1});
+ await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:drag.x+45,y:drag.y+20,button:'left'});
+ await until("testMap.getCenter().toString()!=="+JSON.stringify(camera));
+ const zoom=await js("testMap.getZoom()");
+ await call('Input.dispatchMouseEvent',{type:'mouseWheel',...drag,deltaX:0,deltaY:-240});
+ await until("testMap.getZoom()!=="+zoom);
+ await js("askTool.click();waypointTool.click();true");
+ console.log('PASS offline questions and waypoint lookup at 375, 430 and desktop, reduced viewport form, map drag and zoom');
  await js("window.confirm=()=>false;deletePoint.click();true");
  assert(await js("pointList.selectedOptions[0]?.text==='Truck'"));
  await js("window.confirm=()=>true;deletePoint.click();true");

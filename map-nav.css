@@ -48,3 +48,24 @@
 #layerOptions .leaflet-control-layers { float: none; margin: 0; box-shadow: none; }
 #layerOptions label { padding: 4px; }
 #waypoints:not([open]), #waypoints > summary { display: none; }
+#app, body.offline-map { position: relative; }
+.map-tools #askTool { border-top: 1px solid #718178; }
+#askSheet {
+  grid-area: map; position: absolute; z-index: 600; bottom: var(--keyboard-gap, 0px);
+  left: 0; right: 0; margin: 0 auto; width: min(100%, 410px);
+  max-height: min(75%, var(--visible-height, 75dvh)); display: flex; flex-direction: column;
+  padding: 6px 10px 10px; gap: 6px; border: 1px solid #748278; border-radius: 14px 14px 0 0;
+  background: #23362a; color: #fff; box-shadow: 0 -3px 14px #0004;
+}
+#askSheet h2 { margin: 0; font-size: 18px; }
+.ask-heading, .ask-entry { display: flex; align-items: center; gap: 8px; }
+.ask-heading h2 { flex: 1; }
+#askSheet button { padding: 6px 9px; min-width: 44px; min-height: 44px; border: 0; border-radius: 8px; color: #202622; background: #e0e3e1; font: 600 14px system-ui; }
+#askSheet .ask-list { display: grid; gap: 8px; overflow-y: auto; min-height: 0; }
+.ask-list button { text-align: left; overflow-wrap: anywhere; }
+#askSheet form { padding: 0; width: 100%; background: transparent; border: 0; }
+#askSheet input { min-width: 0; flex: 1; padding: 8px; height: 44px; font: 16px system-ui; border: 1px solid #829789; border-radius: 8px; }
+.ask-list p, .ask-feedback { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.ask-feedback:empty { display: none; }
+#askSheet svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: middle; }
+.question-line { filter: drop-shadow(0 0 1.5px white); }

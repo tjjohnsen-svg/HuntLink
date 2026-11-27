@@ -1,24 +1,29 @@
+let waypointStore;
+function request(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function openStore() {
+  if (!waypointStore) {
+    const open = indexedDB.open('huntlink-waypoints:' + new URL('.',location.href).pathname, 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('points', {keyPath:'id', autoIncrement:true});
+    waypointStore = request(open).catch(error => { waypointStore = null; throw error; });
+  }
+  return waypointStore;
+}
+export async function readWaypoints() {
+  const store = await openStore();
+  return request(store.transaction('points').objectStore('points').getAll());
+}
 // A separate on-device store keeps pins independent of topo pack replacement and deletion.
 export function setupWaypoints(map, $, savedBounds) {
   const layer = L.layerGroup();
   const list = $('pointList');
-  let db, points = [], fix = null, expiry, picking = false, visible = false, busy = false;
+  let points = [], fix = null, expiry, picking = false, visible = false, busy = false;
   let revision = 0;
 
-  function request(req) {
-    return new Promise((resolve, reject) => {
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-  async function openStore() {
-    if (!db) {
-      const open = indexedDB.open('huntlink-waypoints:' + new URL('.',location.href).pathname, 1);
-      open.onupgradeneeded = () => open.result.createObjectStore('points', {keyPath:'id', autoIncrement:true});
-      db = await request(open);
-    }
-    return db;
-  }
   function selected() {
     return points.find(p => String(p.id) === list.value);
   }
@@ -67,8 +72,7 @@ export function setupWaypoints(map, $, savedBounds) {
   }
   async function refresh(id = list.value) {
     const current = ++revision;
-    const store = await openStore();
-    const records = await request(store.transaction('points').objectStore('points').getAll());
+    const records = await readWaypoints();
     if (current !== revision || !visible) return;
     points = records.sort((a,b) => a.name.localeCompare(b.name) || a.id-b.id);
     layer.clearLayers();
@@ -101,6 +105,7 @@ export function setupWaypoints(map, $, savedBounds) {
         tx.oncomplete = resolve;
         tx.onabort = () => reject(tx.error);
       });
+      window.dispatchEvent(new Event('waypoints-changed'));
       await refresh(keepId ?? result.result);
       $('waypointHint').textContent = message;
     } catch { $('waypointHint').textContent = 'Could not update this waypoint. Check device storage and retry.'; }

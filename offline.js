@@ -1,4 +1,5 @@
 import { createParcelLayer, downloadPublicLand } from './public-land.js';
+import { setupQuestions, cachedHunters, cachedPeople } from './good-shit.js';
 import { setupWaypoints } from './waypoints.js';
 // The region outlines are generalized Census TIGERweb State_County polygons.
 const $ = id => document.getElementById(id);
@@ -17,8 +18,8 @@ const parcels = createParcelLayer(map,L);
 const groupLayer = L.layerGroup();
 function showGroup() {
   groupLayer.eachLayer(layer=>layer.unbindTooltip()); groupLayer.clearLayers(); groupLayer.remove();
-  let cache=null; try { cache=JSON.parse(localStorage.getItem('huntlinkLastKnown')); } catch {}
-  const hunters=(cache?.hunters||[]).filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)&&Date.now()-h.time<6*3600000);
+  questions.render();
+  const hunters=cachedHunters();
   $('groupOption').hidden=!hunters.length;
   if (!hunters.length || !$('groupToggle').checked) return;
   groupLayer.addTo(map);
@@ -29,6 +30,21 @@ function showGroup() {
   }
 }
 const waypoints = setupWaypoints(map, $, () => area && L.latLngBounds(area.bounds));
+
+let questionGPS=false;
+const questions=setupQuestions({
+  map,
+  people:()=>$('groupToggle').checked?cachedPeople():[],
+  ownFix:()=>{
+    const age=Date.now()-lastPosition?.timestamp;
+    if(!(age>=0 && age<30000)) return null;
+    const {latitude:lat,longitude:lng,accuracy}=lastPosition.coords;
+    return {lat,lng,accuracy};
+  },
+  waiting:()=>watch===null?'Tap My location for distance and direction.':'Waiting for a fresh fix from your phone.',
+  findFix:()=>{if(watch===null){questionGPS=true;startGPS();}},
+  releaseFix:()=>{if(questionGPS){stopGPS();$('gps').textContent='GPS off.';}}
+});
 
 // Resizing the status panel keeps the chosen area and its download message.
 new ResizeObserver(()=>{
@@ -142,7 +158,7 @@ function stopGPS() {
   waypoints.setFix(null);
   if (watch!==null) navigator.geolocation.clearWatch(watch);
   watch=null; marker?.remove(); accuracyCircle?.remove(); marker=null; accuracyCircle=null;
-  lastPosition=null; $('stopGps').hidden=true;
+  lastPosition=null; questionGPS=false; questions.render(); $('stopGps').hidden=true;
 }
 function displayPosition(position, center) {
   const point=L.latLng(position.coords.latitude,position.coords.longitude);
@@ -171,11 +187,13 @@ function startGPS(highAccuracy=true) {
     const first=!lastPosition;
     lastPosition=position;
     waypoints.setFix(position);
-    displayPosition(position, first && !controller);
+    displayPosition(position, first && !controller && !questionGPS);
+    questions.render();
   }, error => {
     if (token!==generation) return;
+    const privateQuery=questionGPS;
     stopGPS();
-    if (highAccuracy && (error.code===2 || error.code===3)) startGPS(false);
+    if (highAccuracy && (error.code===2 || error.code===3)) {questionGPS=privateQuery;startGPS(false);}
     else $('gps').textContent=error.code===1?'Allow location access, then tap My location.':'No location fix. Tap My location to retry.';
   },{enableHighAccuracy:highAccuracy,maximumAge:5000,timeout:20000});
 }
@@ -329,6 +347,7 @@ async function download(resume=false) {
 }
 
 $('locate').onclick=()=>{
+  questionGPS=false;
   if (watch===null) startGPS();
   else if (lastPosition && Date.now()-lastPosition.timestamp<30000) displayPosition(lastPosition,true);
   else if (lastPosition) { stopGPS(); startGPS(); }

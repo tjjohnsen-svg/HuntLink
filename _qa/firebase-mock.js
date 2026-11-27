@@ -7,8 +7,17 @@ const signInAnonymously=async a=>a.currentUser={uid:'synthetic'},signOut=async a
 const set=async(path,v)=>{if(path.startsWith('members/')&&v!=='test-only')throw Object.assign(Error(),{code:'PERMISSION_DENIED'});if(path.startsWith('locations/')){if(failWrite)throw Error('test write'); records.push(v); if(lagWrite)await new Promise(r=>deferredWrite=r)}};
 const remove=async path=>{removals.push(path);if(removeError)throw Object.assign(Error(),{code:removeError});if(held)await new Promise(r=>delayDelete=r)};
 const serverTimestamp=()=>now,get=async()=>({}),onDisconnect=()=>({remove:async()=>{arms++}});
-const onValue=(k,fn)=>{listeners[k]=v=>fn({val:()=>v});if(k==='.info/connected')listeners[k](true);return ()=>delete listeners[k]};
+let denyGroup, speech;
+window.SpeechRecognition=class {
+ constructor(){speech=this;}
+ start(){}
+ stop(){this.onend();}
+ abort(){this.onend();}
+};
+const onValue=(k,fn,denied)=>{if(k==='locations')denyGroup=denied;listeners[k]=v=>fn({val:()=>v});if(k==='.info/connected')listeners[k](true);return ()=>delete listeners[k]};
 let polls=[],pollOk,wakeRequests=0,wakeReleases=0;
 Object.defineProperty(navigator,'geolocation',{value:{watchPosition:(s,e)=>{gps=s;gpsError=e;running=true;return 1},clearWatch:()=>running=false,getCurrentPosition:(s,e,o)=>{pollOk=s;polls.push(o)}}});
 Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{request:async()=>{wakeRequests++;return {release:async()=>{wakeReleases++},addEventListener(){}}}}});
 localStorage.clear();
+
+const readWaypoints=async()=>[{id:1,name:'Prado Creek',lat:.02,lng:0},{id:2,name:'Truck',lat:.01,lng:0}];

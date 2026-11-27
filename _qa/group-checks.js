@@ -9,6 +9,17 @@ ok(rail.getBoundingClientRect().right<=map.getContainer().getBoundingClientRect(
 ok([...rail.children].every(tool=>tool.offsetHeight>=44 && tool.querySelector('svg') && tool.textContent.trim()),'labeled icon touch targets');
 $('layersTool').click();
 ok(!$('layerOptions').hidden && $('layerOptions').contains(layers.getContainer()),'layers accessible from navigation');
+const baseChoices=$('layerOptions').querySelectorAll('input');
+ok(baseChoices.length===2 && [...baseChoices].every(choice=>choice.type==='radio'),'Topo/Sat only offers two basemaps');
+const parcelButtonInNav=$('publicLandTool');
+ok(!map.hasLayer(publicLand) && parcelButtonInNav.getAttribute('aria-pressed')==='false','parcels start off');
+parcelButtonInNav.click();
+baseChoices[1].click();
+ok(map.hasLayer(aerial) && map.hasLayer(publicLand) && parcelButtonInNav.getAttribute('aria-pressed')==='true','satellite retains parcel overlay');
+baseChoices[0].click();
+ok(map.hasLayer(topo) && map.hasLayer(publicLand),'topo retains parcel overlay');
+parcelButtonInNav.click();
+ok(map.hasLayer(topo) && !map.hasLayer(publicLand) && $('landNotice').hidden && parcelButtonInNav.getAttribute('aria-pressed')==='false','parcels turn off independently');
 $('huntersTool').click();
 ok(!$('friends').hidden && $('layerOptions').hidden && $('huntersTool').getAttribute('aria-expanded')==='true','hunter list opens from navigation');
 const read=()=>$('hunterReading').textContent;

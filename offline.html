@@ -12,6 +12,7 @@
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#192b23;color:#fff;font:16px system-ui,sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column}
 header,section{padding:10px 14px}header,.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}h1{font-size:21px;margin:0}header a{margin-left:auto;color:#daf5d9}#map{flex:1;min-height:120px;background:#45584f}
 section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;overflow:auto}p{margin:4px 0 8px}button{padding:10px 12px;border:0;border-radius:8px;background:#e8eee9;color:#192b23;font:600 15px system-ui;cursor:pointer}button.primary{background:#c7e79a}button:disabled{opacity:.55}#status,#gps{font-size:14px}progress{width:100%}
+#waypoints{margin:8px 0}#waypoints summary{cursor:pointer;padding:8px 0;font-weight:650}#waypoints select{font:inherit;max-width:100%;padding:8px;margin:6px 0}#waypointHint,#returnInfo{font-size:14px}#returnInfo:empty{display:none}
 </style>
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 <script type="module" src="./offline.js"></script>
@@ -31,5 +32,14 @@ section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;ove
 <button id="delete" hidden>Delete saved area</button>
 </div>
 <p id="gps" role="status"></p>
+<details id="waypoints" hidden>
+<summary>Private waypoints</summary>
+<div class="actions"><button id="markGps">Mark my position</button><button id="pickPoint">Mark on map</button></div>
+<p id="waypointHint" role="status"></p>
+<label for="pointList">Saved on this device</label>
+<select id="pointList"><option value="">Select a waypoint</option></select>
+<div class="actions"><button id="showPoint" disabled>Show on map</button><button id="renamePoint" disabled>Rename</button><button id="deletePoint" disabled>Delete waypoint</button></div>
+</details>
+<p id="returnInfo" role="status"></p>
 </section>
 </body></html>

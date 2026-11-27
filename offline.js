@@ -1,3 +1,4 @@
+import { setupWaypoints } from './waypoints.js';
 // The region outlines are generalized Census TIGERweb State_County polygons.
 const $ = id => document.getElementById(id);
 const topo = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}';
@@ -8,6 +9,8 @@ const footprint = L.rectangle([[0,0],[0,0]], {color:'#9b3900',weight:3,fill:fals
 L.control.scale({metric:false}).addTo(map);
 let db, states, area, plan, localTiles, controller, viewing = false;
 let watch = null, generation = 0, marker, accuracyCircle;
+
+const waypoints = setupWaypoints(map, $, () => area && L.latLngBounds(area.bounds));
 
 function result(request) {
   return new Promise((resolve,reject) => {
@@ -76,6 +79,7 @@ function controls() {
 }
 function stopGPS() {
   generation++;
+  waypoints.setFix(null);
   if (watch!==null) navigator.geolocation.clearWatch(watch);
   watch=null; marker?.remove(); accuracyCircle?.remove(); marker=null; accuracyCircle=null;
   $('locate').textContent='My location';
@@ -89,6 +93,7 @@ function startGPS(highAccuracy=true) {
     if (token!==generation || !viewing) return;
     const point=L.latLng(position.coords.latitude,position.coords.longitude);
     const radius=position.coords.accuracy;
+    waypoints.setFix(position);
     if (!marker) {
       accuracyCircle=L.circle(point,{radius,color:'#1683ff',weight:1}).addTo(map);
       marker=L.circleMarker(point,{radius:7,color:'white',fillColor:'#1683ff',fillOpacity:1}).bindTooltip('You').addTo(map);
@@ -119,7 +124,7 @@ const SavedTiles = L.GridLayer.extend({
   }
 });
 function showSaved() {
-  viewing=true; onlineTiles.remove(); footprint.remove(); localTiles?.remove();
+  viewing=true; waypoints.show(); onlineTiles.remove(); footprint.remove(); localTiles?.remove();
   const bounds=L.latLngBounds(area.bounds);
   map.setMinZoom(12); map.setMaxBounds(bounds.pad(0.15));
   map.fitBounds(bounds,{maxZoom:15,animate:false});
@@ -131,7 +136,7 @@ function showSaved() {
   controls();
 }
 function choose() {
-  viewing=false; stopGPS(); $('gps').textContent='';
+  viewing=false; waypoints.hide(); stopGPS(); $('gps').textContent='';
   localTiles?.remove(); map.setMaxBounds(null); map.setMinZoom(5);
   onlineTiles.addTo(map); controls(); updatePlan();
 }

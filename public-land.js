@@ -199,7 +199,7 @@ export function clipFeature(feature, box) {
 export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
   // Idaho, Washington, Montana and Oregon.
   const coverage = L.latLngBounds([41.98, -124.9], [49.01, -104.03]);
-  const limit = 150, maxCached = 1500;
+  const limit = 150, maxCached = 800;
   // At zoom 10 and 11 (scouting a wider area) only large federal and state parcels load, which keeps
   // each download about the same size as a closer view.
   const minZoom = 10, scoutBelow = 12;
@@ -245,6 +245,16 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
     && (a.partial ? a.zoom === zoom : a.zoom >= zoom - 1));
   const parcelId = feature => feature.id ?? feature.properties?.OBJECTID ?? Symbol('parcel');
 
+  // Only parcels near the current view are drawn; the rest wait in memory. Drawing every parcel
+  // loaded during a session made each pan slower and slower on a phone.
+  function showNearby() {
+    const near = map.getBounds().pad(0.5);
+    for (const item of cached.values()) {
+      const want = near.intersects(item.bounds);
+      if (want && !parcels.hasLayer(item.layer)) parcels.addLayer(item.layer);
+      else if (!want && parcels.hasLayer(item.layer)) parcels.removeLayer(item.layer);
+    }
+  }
   function store(features, zoom) {
     for (const feature of features) {
       const id = parcelId(feature);
@@ -254,21 +264,23 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
       if (old) parcels.removeLayer(old.layer);
       added = null;
       try { parcels.addData(feature); } catch { continue; } // Skip a parcel with broken geometry.
-      if (added) cached.set(id, {layer: added, zoom});
+      if (added) cached.set(id, {layer: added, zoom, bounds: added.getBounds()});
     }
-    // Forget far-away parcels if a long session piles up too many for a phone to draw smoothly.
+    // Forget far-away parcels if a long session piles up too many.
     if (cached.size > maxCached) {
       const keep = map.getBounds().pad(1);
       for (const [id, item] of cached) {
-        if (!keep.intersects(item.layer.getBounds())) { parcels.removeLayer(item.layer); cached.delete(id); }
+        if (!keep.intersects(item.bounds)) { parcels.removeLayer(item.layer); cached.delete(id); }
       }
       areas = areas.filter(a => keep.intersects(a.box));
     }
+    showNearby();
   }
 
   function update() {
     if (!map.hasLayer(parcels)) return;
     notice.hidden = false;
+    showNearby();
     const bounds = map.getBounds(), zoom = map.getZoom();
     // The map also reports a "move" when the info panel under it grows or shrinks. If the view is
     // still inside an area already loaded, keep what is shown instead of reloading. Without this a
@@ -330,7 +342,7 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
         if (request !== active) return;
         failed = {center: map.getCenter(), zoom};
         const visible = map.getBounds();
-        notice.textContent = [...cached.values()].some(item => visible.intersects(item.layer.getBounds()))
+        notice.textContent = [...cached.values()].some(item => visible.intersects(item.bounds))
           ? 'Couldn\'t update public land (weak or no signal). Showing parcels loaded earlier; some may be missing. Move the map to retry.'
           : 'Public land unavailable. Move the map or toggle the layer to retry.';
       } finally {

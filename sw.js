@@ -1,4 +1,4 @@
-// Cached files hash: 3cb9553660be0dc0. Run python3 _qa/sw_version.py --update after changing a cached file.
+// Cached files hash: ccbba787eb587ae9. Run python3 _qa/sw_version.py --update after changing a cached file.
 const scope = self.registration.scope;
 const shell = 'huntlink-offline-topo-v8:' + scope;
 const viewer = new URL('offline.html', scope).href;

@@ -5,7 +5,7 @@ import { chromium, devices } from 'playwright';
 //   npx firebase-tools emulators:start --only auth,database --project demo-huntlink
 // (with a firebase.json that loads database.rules.json; see _qa/README.md). Takes about 5 minutes.
 import { createServer } from 'node:http';
-import { readFile, cp, mkdtemp, writeFile } from 'node:fs/promises';
+import { readFile, cp, mkdtemp, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
@@ -42,6 +42,9 @@ async function user(label, geo, {perms=['geolocation'],init,block}={}){
   await page.goto(APP); return {ctx,page,label};
 }
 async function join(u,name){await u.page.waitForFunction(()=>!document.getElementById('enter').disabled,null,{timeout:20000});await u.page.fill('#name',name);await u.page.fill('#password',PW);await u.page.click('#enter');await u.page.waitForSelector('#app:not([hidden])',{timeout:10000});}
+async function enterAgain(u,pw=PW,expectIn=pw===PW){await u.page.waitForFunction(()=>!document.getElementById('enter').disabled,null,{timeout:20000});await u.page.fill('#password',pw);await u.page.click('#enter');if(expectIn)await u.page.waitForSelector('#app:not([hidden])',{timeout:10000});else await u.page.waitForTimeout(2500);}
+const val=(u,id)=>u.page.locator('#'+id).inputValue();
+const notes=path.resolve(root,'..','huntlink-qa-notes','qa4')+'/';
 const txt=(u,id)=>u.page.locator('#'+id).textContent();
 const tone=u=>u.page.locator('#statusBar').getAttribute('class');
 const friends=async u=>{await u.page.evaluate(()=>{if(document.getElementById('friends').hidden)document.getElementById('huntersTool').click();});return txt(u,'friends');};
@@ -78,9 +81,22 @@ ok(t1.updatedAt>firstUpdate+60000,'heartbeat refreshed updatedAt while stationar
 const bl2=await friends(B); ok(bl2.includes('Alice Smith · Sharing · fix'),'stationary hunter still visible after 150 s: '+bl2);
 log('alice status while stationary:',await txt(A,'status'),'|',await tone(A));
 await B.page.screenshot({path:shots+'02-bob-stationary.png'});
-// 4. reload while sharing resumes sharing
-await A.page.reload(); await A.page.waitForSelector('#app:not([hidden])',{timeout:15000}); await A.page.waitForTimeout(1500);
-ok((await txt(A,'share')).includes('Stop sharing'),'sharing resumes after reload: '+await txt(A,'status'));
+// 4. returning after a reload: login again with the name filled in; sharing waits for the password
+const aliceUid=Object.keys(await admin('GET','locations'))[0];
+ok((await admin('GET','members/'+aliceUid))===PW,'alice is a member before the reload');
+await A.page.reload(); await A.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:15000}); await A.page.waitForTimeout(2500);
+ok(await A.page.locator('#login').isVisible() && !(await A.page.locator('#app').isVisible()),'returning hunter sees the login screen, not the map');
+ok((await val(A,'name'))==='Alice Smith' && (await val(A,'password'))==='','name is filled in and the password is empty');
+ok((await txt(A,'loginNote')).includes('Sharing is paused until you enter the group password'),'login explains sharing is paused: '+await txt(A,'loginNote'));
+ok((await A.page.locator('#nameHint').innerText()).includes('Use any name you want'),'name helper text shown');
+ok((await admin('GET','members/'+aliceUid))===null,'membership dropped on return, so the server needs the password again');
+const heldSpot=(await admin('GET','locations/'+aliceUid))?.updatedAt; await A.page.waitForTimeout(25000);
+ok((await admin('GET','locations/'+aliceUid))?.updatedAt===heldSpot,'sharing did not restart before the password was entered');
+await mkdir(notes,{recursive:true}); await A.page.screenshot({path:notes+'login-return.png'});
+await enterAgain(A,'wrong-password');
+ok(!(await A.page.locator('#app').isVisible()) && (await txt(A,'error')).includes('Incorrect'),'wrong password on return is refused: '+await txt(A,'error'));
+await enterAgain(A); await A.page.waitForTimeout(1500);
+ok((await txt(A,'share')).includes('Stop sharing'),'sharing resumes after the password is entered again: '+await txt(A,'status'));
 // 6/7. offline: Alice drops signal -> stays as last-known on Bob's map
 await A.ctx.setOffline(true); await A.page.waitForTimeout(6000);
 ok((await tone(A))==='tone-offline' && (await txt(A,'connection'))==='Offline','alice offline tone: '+await txt(A,'status'));
@@ -100,24 +116,28 @@ await A.page.click('#share'); await A.page.waitForTimeout(3000);
 ok(!(await admin('GET','locations')),'stop sharing removes server record');
 // 6h cleanup by a member under real rules
 await admin('PUT','locations/ghost',{name:'Ghost',lat:45,lng:-115,accuracy:5,updatedAt:Date.now()-7*3600000});
-await B.page.reload(); await B.page.waitForSelector('#app:not([hidden])',{timeout:15000}); await B.page.waitForTimeout(4000);
+await B.page.reload(); await enterAgain(B); await B.page.waitForTimeout(4000);
 ok(!(await admin('GET','locations/ghost')),'member client removed a 6-hour-old record (allowed by new rule)');
 // 2. GPS timeouts keep sharing
 const C=await user('carol',{latitude:45,longitude:-115},{init:()=>{let id=0;navigator.geolocation.watchPosition=(ok,err,o)=>{++id;setTimeout(()=>ok({coords:{latitude:45.001,longitude:-115,accuracy:8},timestamp:Date.now()}),300);setTimeout(()=>err({code:3,message:'Timeout'}),3000);setTimeout(()=>err({code:2,message:'Unavailable'}),5000);return id;};navigator.geolocation.clearWatch=()=>{};navigator.geolocation.getCurrentPosition=()=>{};}});
 await join(C,'Carol'); await C.page.click('#share'); await C.page.waitForTimeout(7000);
 ok((await txt(C,'share')).includes('Stop sharing') && (await txt(C,'status')).includes('Weak GPS') && (await tone(C))==='tone-weak','GPS timeouts keep sharing with weak-GPS state: '+await txt(C,'status'));
 await C.page.screenshot({path:shots+'04-carol-weak.png'});
-// 4. startup with database unreachable -> offline map, not password prompt
+// 4. startup with database unreachable -> login with offline guidance; offline maps still open
 await C.ctx.close();
 const D=await user('dave',{latitude:45,longitude:-115}); await join(D,'Dave');
 await D.ctx.routeWebSocket(/9000/,ws=>ws.close()); await D.ctx.route(/127\.0\.0\.1:9000/,r=>r.abort());
 await D.page.reload(); await D.page.waitForTimeout(12000);
-ok(await D.page.locator('#app').isVisible() && !(await txt(D,'error')).includes('password'),'no signal at startup opens map offline: '+await txt(D,'status'));
+ok(await D.page.locator('#login').isVisible() && (await val(D,'name'))==='Dave' && (await txt(D,'error')).includes('offline topo maps and waypoints still work') && await D.page.locator('#login .offlineLink').isVisible(),'no signal at startup points to offline maps: '+await txt(D,'error'));
+await D.page.screenshot({path:notes+'login-no-signal.png'});
+await D.page.click('#login .offlineLink'); await D.page.waitForSelector('#map',{timeout:10000});
+ok(D.page.url().endsWith('offline.html'),'offline topo opens without the group password');
 await D.ctx.close();
 // 4. password rotation -> clear message
 await admin('PUT','config/groupPassword','synthetic-pass-3');
-await B.page.reload(); await B.page.waitForTimeout(6000);
-ok((await txt(B,'error')).includes('password changed'),'rotated password: '+await txt(B,'error'));
+await B.page.reload(); await enterAgain(B,PW,false);
+ok(!(await B.page.locator('#app').isVisible()) && (await txt(B,'error')).includes('Incorrect'),'old password refused after rotation: '+await txt(B,'error'));
+await enterAgain(B,'synthetic-pass-3',true); ok(await B.page.locator('#app').isVisible(),'new password lets the hunter back in');
 await admin('PUT','config/groupPassword',PW);
 // 3. vendor files blocked -> watchdog
 const E=await user('erin',{latitude:45,longitude:-115},{block:/vendor\/firebase/});
@@ -125,4 +145,9 @@ await E.page.waitForTimeout(2500);
 ok((await txt(E,'error')).includes("HuntLinq couldn't finish loading") && await E.page.locator('#reload').isVisible(),'load failure explained with Reload: '+await txt(E,'error'));
 await E.page.screenshot({path:shots+'05-load-failure.png'});
 await A.page.screenshot({path:shots+'06-alice.png'});
+// Leave group still works after a return, and the next launch starts blank
+await A.page.click('#logout'); await A.page.waitForTimeout(3000);
+ok((await admin('GET','members/'+aliceUid))===null && !(await admin('GET','locations/'+aliceUid)),'leave group removes membership and location');
+await A.page.reload(); await A.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:15000});
+ok((await val(A,'name'))==='' && !(await A.page.locator('#loginNote').isVisible()),'after leaving, the next launch has a blank name and no welcome-back note');
 await browser.close(); server.close(); log('FAILURES',fails,'· screenshots in',work); process.exit(fails?1:0);

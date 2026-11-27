@@ -30,7 +30,7 @@
 *{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:#192b23;color:#fff;font:15px system-ui,sans-serif} button,input{font:inherit} button{cursor:pointer;border:0;border-radius:9px;padding:11px 14px;font-weight:650;background:#e8eee9;color:#192b23} button:disabled{opacity:.5;cursor:default} .primary{background:#c7e79a;color:#192b23} .danger{background:#f5c5bd;color:#651e17} header{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;gap:8px} h1{font-size:23px;margin:0} #app{height:100vh;height:100dvh;display:flex;flex-direction:column} #map{flex:1;min-height:0;background:#324439} #panel{padding:10px 14px max(12px,env(safe-area-inset-bottom));display:grid;gap:8px} .buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons button{flex:1} #notice{font-size:13px;line-height:1.4;color:#e0e9e0} #notice{color:#ffdf9c} #friends{display:flex;gap:7px;overflow-x:auto} #friends button{flex-shrink:0;text-align:left;font-size:12px;padding:7px 10px} #login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px} form{width:min(100%,380px);padding:24px;background:#263c30;border:1px solid #506557;border-radius:16px;display:grid;gap:12px} form h1{font-size:32px} form p{margin:0;line-height:1.5;color:#e0e9e0} label{display:grid;gap:5px} input{width:100%;border:1px solid #829789;border-radius:8px;padding:12px;background:#f5f7f4;color:#192b23} #error{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere} .leaflet-tooltip.hunter-label{font-weight:650;white-space:nowrap;color:#fff;background:#192b23;border:0;box-shadow:0 1px 4px #0006} .leaflet-tooltip.hunter-label:before{display:none}
 .map-tools #publicLandTool[aria-pressed="true"]{background:#c7e79a;color:#192b23}
 #landNotice{font-size:13px;color:#daf5d9}.leaflet-control-layers input{width:auto}.leaflet-control-layers label{display:block}
-.offlineLink{color:#daf5d9;padding:8px;text-align:center}header .offlineLink{margin-left:auto}
+.offlineLink{color:#daf5d9;padding:8px;text-align:center} .hint{font-size:13px;line-height:1.4;color:#c9d6cb} #loginNote{color:#ffdf9c;font-size:14px}header .offlineLink{margin-left:auto}
 #hunterDetails{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#263c30;padding:8px 10px;border-radius:8px}#hunterReading{overflow-wrap:anywhere}#closeDetails{flex:none}
 #statusBar{border-radius:9px;padding:8px 10px;background:#2c4234;border-left:6px solid #8fa596}#statusBar.tone-live{border-left-color:#5fd38a;background:#1f4a30}#statusBar.tone-weak{border-left-color:#ffc94d;background:#4a3f1c}#statusBar.tone-offline{border-left-color:#ff8a7a;background:#4d2621}
 .statusLine{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}#status{font-size:16px;font-weight:650;line-height:1.35;color:#fff}#statusDetail{font-size:14px;color:#e0e9e0;margin-top:2px}#statusDetail:empty{display:none}
@@ -42,7 +42,7 @@
 <link rel="stylesheet" href="./map-nav.css">
 </head>
 <body>
-<section id="login"><form id="loginForm"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
+<section id="login"><form id="loginForm"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"><small class="hint" id="nameHint">Use any name you want — it's what your group sees on the map.</small></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><p id="loginNote" role="status" hidden></p><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
 <section id="app" hidden>
 <header><h1>🌲 HuntLinq</h1></header>
 <nav class="map-tools" aria-label="Group map tools">
@@ -67,7 +67,7 @@
 import { addPublicLand } from "./public-land.js";
 import { initializeApp } from './vendor/firebase/firebase-app.js';
 import { getAuth, signInAnonymously, signOut } from './vendor/firebase/firebase-auth.js';
-import { getDatabase, ref, set, remove, onValue, serverTimestamp, get } from './vendor/firebase/firebase-database.js';
+import { getDatabase, ref, set, remove, onValue, serverTimestamp } from './vendor/firebase/firebase-database.js';
 const app = initializeApp({
  apiKey:'AIzaSyAbiYap0fe2P1CmRcL1evCIZcB4zwFxhcs',
  authDomain:'huntlink-9c932.firebaseapp.com',
@@ -293,10 +293,14 @@ function openMap(){
  unsubscribe=onValue(ref(db,'locations'),s=>{haveSnapshot=true;locations=s.val()||{};render()},()=>{haveSnapshot=true;locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
 }
 $('dismissNotice').onclick=()=>{local.set('huntlinkTipSeen',true);$('notice').hidden=true;};
+const OFFLINE_HINT='No connection. The group map needs signal to check the password. Your offline topo maps and waypoints still work: tap Offline topo maps.';
+// The sharing a hunter had on when HuntLinq closed. It resumes only after they enter the password again.
+function sharingToResume(){const intent=local.get('huntlinkSharing');return !!(uid&&intent&&intent.uid===uid&&Date.now()-intent.at<12*3600000);}
+function loginNote(text){$('loginNote').textContent=text;$('loginNote').hidden=!text;}
 function joinError(e){
  if(isDenied(e))return 'Incorrect group password or database rules.';
  const msg=String(e?.code||'')+' '+String(e?.message||'');
- if(!navigator.onLine||/network|offline|unavailable|timeout/i.test(msg))return 'No connection. Joining needs signal once; try again when you have coverage.';
+ if(!navigator.onLine||/network|offline|unavailable|timeout/i.test(msg))return OFFLINE_HINT;
  return e?.message||'Unable to join.';
 }
 async function enter(e){
@@ -306,9 +310,14 @@ async function enter(e){
  try{
   name=$('name').value.trim(); if(!name||name.length>50)throw new Error('Enter your name.');
   if(!auth.currentUser)await signInAnonymously(auth);uid=auth.currentUser.uid;
-  if(!connected)throw new Error('No connection to HuntLinq. Joining needs signal once; try again when you have coverage.');
+  if(!connected)throw new Error(OFFLINE_HINT);
   await set(memberRef(),$('password').value);
-  $('password').value=''; storage.set(name); openMap();
+  $('password').value=''; storage.set(name); loginNote('');
+  const resume=sharingToResume();
+  openMap();
+  if(local.get('huntlinkPendingStop')===uid)void stopSharing();
+  else if(resume)startSharing(true);
+  else local.clear('huntlinkSharing');
  }catch(e){$('error').textContent=joinError(e);}
  finally{busy=false;$('enter').disabled=false;updateSharing();}
 }
@@ -524,27 +533,25 @@ onValue(ref(db,'.info/connected'),s=>{
  render();
 });
 setInterval(()=>{render();pollGPS();void publishFix();if(sharing&&!sharingPaused&&connected&&fix&&Date.now()-fix.time>LIVE&&!writing)status('Sharing · GPS update stale, last fix '+ago(Date.now()-fix.time)+' ago. Searching…');},5000);
-function withTimeout(promise,ms){return Promise.race([promise,new Promise((_,no)=>setTimeout(()=>no(Object.assign(Error('timeout'),{code:'timeout'})),ms))]);}
 try{
  await auth.authStateReady();
  uid=auth.currentUser?.uid||null; name=storage.get();$('name').value=name;
  try{pendingLeave=localStorage.getItem('huntlinkPendingLeave');}catch{}
  if(pendingLeave){storage.clear();name='';$('name').value='';$('error').textContent='You left on this phone. Server cleanup is pending until connected.';await finishLeave();}
  else if(uid&&name){
-  // Only a permission error means the password changed. No signal just opens the map in offline mode.
-  let denied=false;
-  try{await withTimeout(get(ref(db,'locations')),8000);}catch(e){denied=isDenied(e);}
-  if(denied){local.clear('huntlinkLastKnown');$('error').textContent='The group password changed. Enter the new group password.';local.clear('huntlinkSharing');}
-  else{
-   openMap();
-   const intent=local.get('huntlinkSharing');
-   if(local.get('huntlinkPendingStop')===uid)void stopSharing();
-   else if(intent&&intent.uid===uid&&Date.now()-intent.at<12*3600000)startSharing(true);
-   else{local.clear('huntlinkSharing');if(!connected)status('Offline · hunters appear when you have signal.');}
-  }
+  // Returning hunter: always show the login with the name filled in and ask for the group password again.
+  // Also drop this phone's group membership so the server needs the password again too.
+  // Deleting your own membership or location is always allowed by database.rules.json, even offline (it is sent when signal returns).
+  remove(memberRef()).catch(()=>{});
+  if(local.get('huntlinkPendingStop')===uid)remove(ownRef()).then(()=>local.clear('huntlinkPendingStop')).catch(()=>{});
+  if(!sharingToResume())local.clear('huntlinkSharing');
+  loginNote(sharingToResume()?'Welcome back. You were sharing when HuntLinq closed. Sharing is paused until you enter the group password.':'Welcome back. Enter the group password to open the group map.');
+  $('error').textContent='';$('password').focus();
  }else $('error').textContent='';
 }catch(e){$('error').textContent='Connection error: '+e.message;}
 showPendingLeave();
+// No signal at launch: point hunters at their offline maps instead of leaving them at a password they can't use yet.
+setTimeout(()=>{if(!joined&&!connected&&!pendingLeave&&!busy&&!$('error').textContent)$('error').textContent=OFFLINE_HINT;},6000);
 window.huntlinkReady=true;
 </script>
  

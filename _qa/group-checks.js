@@ -2,9 +2,12 @@ const online=v=>listeners['.info/connected'](v), sample=(t=now)=>gps({coords:{la
 ok(document.title==='HuntLinq','login page title is HuntLinq');
 ok(document.querySelector('#login h1')?.textContent.includes('HuntLinq')&&$('enter').textContent==='Enter HuntLinq','login heading and enter button say HuntLinq');
 ok(!document.body.innerText.includes('HuntLink'),'login screen has no HuntLink text');
+ok($('nameHint').textContent.includes('Use any name you want')&&$('name').parentElement.contains($('nameHint')),'name field explains any name works');
+ok($('loginNote').hidden,'first launch shows no welcome-back note');
 const join=async pass=>{$('name').value='Tester';$('password').value=pass;$('loginForm').dispatchEvent(new Event('submit',{cancelable:true}));await flush()};
 await join('denied');ok($('app').hidden&&$('error').textContent.includes('Incorrect'),'denied login');
 await join('test-only');ok(!$('app').hidden&&!running&&records.length===0,'join private');
+ok(!Object.keys(localStorage).some(k=>String(localStorage.getItem(k)).includes('test-only'))&&$('password').value==='','group password is never kept on the phone');
 ok(document.querySelector('#app h1')?.textContent.includes('HuntLinq')&&$('notice').textContent.includes('HuntLinq')&&!$('notice').textContent.includes('HuntLink'),'group map heading and tip say HuntLinq');
 map.invalidateSize();const size=map.getSize();ok(size.x>200&&size.y>100,'usable map space');
 ok(document.documentElement.scrollWidth<=innerWidth,'portrait fits horizontally');map.removeLayer(aerial);map.addLayer(topo);ok(map.hasLayer(topo),'topo selectable');

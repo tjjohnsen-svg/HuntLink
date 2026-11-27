@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#192b23">
-<title>HuntLink</title>
+<title>HuntLinq</title>
  
 <link rel="manifest" href="./manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="HuntLinq">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="icon" type="image/png" href="./icon-192.png">
 
@@ -16,7 +17,7 @@
 (()=>{
  const fail=()=>{
   if(window.huntlinkReady)return;
-  const show=()=>{const e=document.getElementById('error'),r=document.getElementById('reload');if(e)e.textContent="HuntLink couldn't finish loading. Check your signal, then tap Reload. Saved offline topo maps still work.";if(r)r.hidden=false;};
+  const show=()=>{const e=document.getElementById('error'),r=document.getElementById('reload');if(e)e.textContent="HuntLinq couldn't finish loading. Check your signal, then tap Reload. Saved offline topo maps still work.";if(r)r.hidden=false;};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show);else show();
  };
  window.addEventListener('error',e=>{if(e.target&&e.target.tagName==='SCRIPT')fail();},true);
@@ -41,9 +42,9 @@
 <link rel="stylesheet" href="./map-nav.css">
 </head>
 <body>
-<section id="login"><form id="loginForm"><h1>🌲 HuntLink</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit" disabled>Enter HuntLink</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
+<section id="login"><form id="loginForm"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
 <section id="app" hidden>
-<header><h1>🌲 HuntLink</h1></header>
+<header><h1>🌲 HuntLinq</h1></header>
 <nav class="map-tools" aria-label="Group map tools">
   <button id="locate"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg><span>My location</span></button>
   <button id="share" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="5" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8 11 7-4m-7 6 7 4"/></svg><span>Start sharing</span></button>
@@ -60,7 +61,7 @@
 <div id="hunterList" hidden><div id="friends"></div><button id="fitAll" type="button">Show everyone on the map</button></div>
 <div id="hunterDetails" hidden><span id="hunterReading" role="status"></span><button id="closeDetails" aria-label="Close hunter details">Close</button></div><div id="landNotice" role="status" hidden></div>
 <label id="awakeOption"><input id="keepAwake" type="checkbox" checked> Keep screen on while sharing</label>
-<div id="notice" hidden><p>Keep HuntLink open to share. Locking the phone or switching apps pauses updates, and the group sees your last shared spot. Sharing resumes when you return. Sharing needs signal and is not an emergency service.</p><button id="dismissNotice" type="button">Got it</button></div>
+<div id="notice" hidden><p>Keep HuntLinq open to share. Locking the phone or switching apps pauses updates, and the group sees your last shared spot. Sharing resumes when you return. Sharing needs signal and is not an emergency service.</p><button id="dismissNotice" type="button">Got it</button></div>
 </div></section>
 <script type="module">
 import { addPublicLand } from "./public-land.js";
@@ -77,7 +78,6 @@ const app = initializeApp({
  appId:'1:638329750837:web:9f94b3b5e83dd4605e787c'
 });
 const auth=getAuth(app), db=getDatabase(app);
-window.huntlinkReady=true;
 const $=id=>document.getElementById(id);
 const aerial=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19,attribution:'USGS National Map / USDA'});
 const topo=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19,attribution:'USGS National Map'});
@@ -115,7 +115,8 @@ let ownMarker=null, circle=null, watch=null, fix=null, sharing=false, armed=fals
 let locations={}, markers=new Map(), busy=false;
 let sharingPaused=false, earliestFix=0;
 let lastFixSent=null, watchGeneration=0, pendingLeave=null, finishingLeave=false;
-let everConnected=false, gpsWeak=false, lastPoll=0, lastCoarse=0, lastSentOk=0, wakeLock=null, cleaned=new Set(), lastCache='';
+let haveSnapshot=false;
+let everConnected=false, gpsWeak=false, lastPoll=0, lastCoarse=0, lastSentOk=0, wakeLock=null, cleaned=new Map(), lastCache='';
 const storage={get(){try{return localStorage.getItem('huntlinkName')||''}catch{return ''}},set(v){try{localStorage.setItem('huntlinkName',v)}catch{}},clear(){try{localStorage.removeItem('huntlinkName')}catch{}}};
 const local={get(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}},clear(k){try{localStorage.removeItem(k)}catch{}}};
 const memberRef=()=>ref(db,'members/'+uid), ownRef=()=>ref(db,'locations/'+uid);
@@ -228,9 +229,13 @@ function render(){
   if(id===uid||!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||!Number.isFinite(p.updatedAt))continue;
   if(fixAge(p)*1000>KEEP){
    // Expired records: hide, and let any member tidy them away (allowed by the rules after 6 hours).
-   if(connected&&receivedAge(p)*1000>KEEP&&!cleaned.has(id)){cleaned.add(id);remove(ref(db,'locations/'+id)).catch(()=>{});}
+   if(connected&&receivedAge(p)*1000>KEEP&&Date.now()>=(cleaned.get(id)||0)){
+    cleaned.set(id,Date.now()+60000);
+    remove(ref(db,'locations/'+id)).catch(()=>{});
+   }
    continue;
   }
+  cleaned.delete(id);
   const d=describe(id,p,names);
   seen.add(id); let marker=markers.get(id);
   if(!marker){marker=L.marker([p.lat,p.lng],{icon:hunterIcon(id,p,d.state),keyboard:false,title:d.who});marker.on('click',()=>selectHunter(id));marker.addTo(map);marker.bindTooltip(safeText(d.tip),{interactive:true,permanent:true,direction:'top',className:'hunter-label'});marker.hunterKey=null;markers.set(id,marker);}
@@ -251,16 +256,17 @@ function render(){
   b.className=d.state;
   if(list.children[i]!==b)list.insertBefore(b,list.children[i]||null);
  });
+ for(const [id,retryAt] of cleaned)if(Date.now()>=retryAt&&!Object.hasOwn(locations,id))cleaned.delete(id);
  if(!seen.size)list.append(safeText('No other hunters have shared in the last 6 hours.'));
  $('fitAll').hidden=!seen.size;
  updateDetails();
- cacheLastKnown(rows);
+ if(haveSnapshot)cacheLastKnown(rows);
  paintStatus();
 }
 // Keep a device-only copy of the group's last known spots for the offline topo map. Cleared on Leave group.
 function cacheLastKnown(rows){
- const hunters=rows.map(({id})=>{const p=locations[id];return {name:String(p.name||'Hunter'),lat:p.lat,lng:p.lng,accuracy:Number.isFinite(p.accuracy)?p.accuracy:null,time:Math.round(Date.now()-fixAge(p)*1000)};});
- const key=JSON.stringify(hunters.map(h=>[h.name,h.lat,h.lng]));
+ const hunters=rows.map(({id})=>{const p=locations[id];return {name:String(p.name||'Hunter'),lat:p.lat,lng:p.lng,accuracy:Number.isFinite(p.accuracy)?p.accuracy:null,time:Math.round(Math.min(p.measuredAt??p.updatedAt,p.updatedAt)-offset)};});
+ const key=JSON.stringify(hunters);
  if(key===lastCache)return; lastCache=key;
  local.set('huntlinkLastKnown',{savedAt:Date.now(),hunters});
 }
@@ -275,7 +281,7 @@ function openMap(){
  $('notice').hidden=!!local.get('huntlinkTipSeen');
  requestAnimationFrame(()=>map.invalidateSize());
  if(unsubscribe)unsubscribe();
- unsubscribe=onValue(ref(db,'locations'),s=>{locations=s.val()||{};render()},()=>{locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
+ unsubscribe=onValue(ref(db,'locations'),s=>{haveSnapshot=true;locations=s.val()||{};render()},()=>{haveSnapshot=true;locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
 }
 $('dismissNotice').onclick=()=>{local.set('huntlinkTipSeen',true);$('notice').hidden=true;};
 function joinError(e){
@@ -291,7 +297,7 @@ async function enter(e){
  try{
   name=$('name').value.trim(); if(!name||name.length>50)throw new Error('Enter your name.');
   if(!auth.currentUser)await signInAnonymously(auth);uid=auth.currentUser.uid;
-  if(!connected)throw new Error('No connection to HuntLink. Joining needs signal once; try again when you have coverage.');
+  if(!connected)throw new Error('No connection to HuntLinq. Joining needs signal once; try again when you have coverage.');
   await set(memberRef(),$('password').value);
   $('password').value=''; storage.set(name); openMap();
  }catch(e){$('error').textContent=joinError(e);}
@@ -347,7 +353,7 @@ function pollGPS(){
  if(Date.now()-lastPoll<POLL)return;
  lastPoll=Date.now();
  const generation=watchGeneration;
- navigator.geolocation.getCurrentPosition(p=>onPosition(p,generation),e=>{if(e.code!==1)onGPSError(e,generation);},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+ navigator.geolocation.getCurrentPosition(p=>onPosition(p,generation),e=>onGPSError(e,generation),{enableHighAccuracy:true,maximumAge:0,timeout:15000});
 }
 $('locate').onclick=()=>{detailOnlyGPS=false;if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
 async function arm(){
@@ -388,11 +394,14 @@ function stopLocally(){
 }
 async function stopSharing(guidance=''){
  stopLocally();
+ const stoppedUid=uid;
+ local.set('huntlinkPendingStop',stoppedUid);
  const generation=epoch;
  const prefix=guidance?guidance+' ':'';
  status(prefix+'Sharing stopped on this phone. Server removal pending.');
  try{
   await remove(ownRef());
+  if(epoch===generation)local.clear('huntlinkPendingStop');
   if(epoch===generation)status(prefix+'Sharing off. Your shared location was removed.');
  }catch{
   if(epoch===generation)status(prefix+'Sharing stopped locally. Could not confirm server removal.');
@@ -400,17 +409,27 @@ async function stopSharing(guidance=''){
 }
 function startSharing(resumed=false){
  if(!startGPS())return;
+ local.clear('huntlinkPendingStop');
  detailOnlyGPS=false;sharing=true;armed=false;epoch++;lastSent=0;lastFixSent=null;updateSharing();rememberSharing();
- status(!connected?'Offline · sharing will start when signal returns.':resumed?'Sharing resumed after HuntLink restarted. Waiting for GPS…':'Preparing live sharing...');
+ status(!connected?'Offline · sharing will start when signal returns.':resumed?'Sharing resumed after HuntLinq restarted. Waiting for GPS…':'Preparing live sharing...');
  requestWake();void arm();
 }
 $('share').onclick=()=>{
  if(sharing){void stopSharing();return;}
  startSharing();
 };
+let wakePending=false;
 async function requestWake(){
- if(!sharing||document.hidden||wakeLock||!$('keepAwake').checked||!navigator.wakeLock)return;
- try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null;paintStatus();});paintStatus();}catch{wakeLock=null;}
+ if(!sharing||document.hidden||wakeLock||wakePending||!$('keepAwake').checked||!navigator.wakeLock)return;
+ wakePending=true;
+ try{
+  const lock=await navigator.wakeLock.request('screen');
+  if(!sharing||document.hidden||!$('keepAwake').checked){await lock.release();return;}
+  wakeLock=lock;
+  lock.addEventListener('release',()=>{if(wakeLock===lock)wakeLock=null;paintStatus();});
+  paintStatus();
+ }catch{/* The phone can deny a screen wake lock to save power. */}
+ finally{wakePending=false;}
 }
 function releaseWake(){const w=wakeLock;wakeLock=null;w?.release().catch(()=>{});}
 $('keepAwake').checked=local.get('huntlinkKeepAwake')!==false;
@@ -420,7 +439,7 @@ function pauseVisibleSharing(){
  if(!sharing||sharingPaused)return;
  sharingPaused=true;armed=false;epoch++;
  stopGPS();
- status('Sharing paused while HuntLink is hidden.');
+ status('Sharing paused while HuntLinq is hidden.');
 }
 function resumeVisibleSharing(){
  if(document.hidden||!joined||!sharing||!sharingPaused)return;
@@ -475,7 +494,7 @@ $('retryLeave').onclick=finishLeave;
 $('logout').onclick=()=>{
  if(!joined||busy)return;
  rememberLeave(uid);storage.clear();local.clear('huntlinkLastKnown');lastCache='';
- joined=false;stopLocally();map.removeLayer(publicLand);
+ joined=false;haveSnapshot=false;stopLocally();map.removeLayer(publicLand);
  if(unsubscribe)unsubscribe();
  unsubscribe=null;locations={};
  for(const marker of markers.values())marker.remove();
@@ -488,7 +507,7 @@ $('logout').onclick=()=>{
 onValue(ref(db,'.info/serverTimeOffset'),s=>{offset=s.val()||0;});
 onValue(ref(db,'.info/connected'),s=>{
  connected=s.val()===true;connection();if(pendingLeave)showPendingLeave();
- if(!connected){armed=false;if(sharing){epoch++;status(sharingPaused?'Sharing paused while HuntLink is hidden.':'Offline · location updates paused. The group sees your last shared spot.');}}
+ if(!connected){armed=false;if(sharing){epoch++;status(sharingPaused?'Sharing paused while HuntLinq is hidden.':'Offline · location updates paused. The group sees your last shared spot.');}}
  else if(pendingLeave){void finishLeave();}
  else if(sharing){lastSent=0;if(!sharingPaused)status(fix?'Back online · sending your location.':'Back online · waiting for a GPS fix to send.');void arm();}
  else if(joined&&!fix&&everConnected)status('Back online. GPS not started. Sharing off.');
@@ -506,22 +525,24 @@ try{
   // Only a permission error means the password changed. No signal just opens the map in offline mode.
   let denied=false;
   try{await withTimeout(get(ref(db,'locations')),8000);}catch(e){denied=isDenied(e);}
-  if(denied){$('error').textContent='The group password changed. Enter the new group password.';local.clear('huntlinkSharing');}
+  if(denied){local.clear('huntlinkLastKnown');$('error').textContent='The group password changed. Enter the new group password.';local.clear('huntlinkSharing');}
   else{
    openMap();
    const intent=local.get('huntlinkSharing');
-   if(intent&&intent.uid===uid&&Date.now()-intent.at<12*3600000)startSharing(true);
+   if(local.get('huntlinkPendingStop')===uid)void stopSharing();
+   else if(intent&&intent.uid===uid&&Date.now()-intent.at<12*3600000)startSharing(true);
    else{local.clear('huntlinkSharing');if(!connected)status('Offline · hunters appear when you have signal.');}
   }
  }else $('error').textContent='';
 }catch(e){$('error').textContent='Connection error: '+e.message;}
 showPendingLeave();
+window.huntlinkReady=true;
 </script>
  
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js')
-    .then(() => console.log('HuntLink service worker registered'))
+    .then(() => console.log('HuntLinq service worker registered'))
     .catch(error => console.error('Service worker failed:', error));
 }
 </script>

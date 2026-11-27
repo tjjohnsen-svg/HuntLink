@@ -168,4 +168,11 @@ try {
  await js("window.confirm=()=>true;document.getElementById('delete').click();true");
  await until("document.getElementById('saved').hidden && !document.getElementById('download').hidden");
  console.log('PASS earlier single-area offline pack still opens after the storage upgrade, and deletes cleanly');
+ missing=true;
+ await js("testMap.setView([43.615,-116.202],14,{animate:false});landToggle.checked=true;download.click();true");
+ await until("document.getElementById('status').textContent.includes('incomplete')");
+ await js("landToggle.click();download.click();true");
+ await until("landNote.textContent.includes('Topo only')&&!landNote.hidden");
+ console.log('PASS topo-only retry after a boundary-service failure');
+
 } finally {socket.close();chrome.kill();server.closeAllConnections();server.close();}

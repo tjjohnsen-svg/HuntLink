@@ -7,7 +7,7 @@ Run the commands from the repository root. The browser runner creates a fresh te
 | Group map and offline maps in Chromium | `python3 _qa/run.py chrome` | Google Chrome on PATH and Node.js 22.4+ |
 | Same flows in mobile-sized WebKit | `/usr/bin/python3 _qa/run.py webkit` | Linux graphical session, PyGObject, GTK 3 and WebKit2GTK 4.1 |
 | Firebase permissions | `python3 _qa/rules.py /path/to/firebase-database-emulator.jar` | Java and the Firebase Realtime Database emulator JAR |
-| Multi-user group map against the Firebase emulators (about 5 minutes) | `cd _qa && npx firebase-tools emulators:start --only auth,database --project demo-huntlink`, then in another shell `node _qa/emulator-e2e.mjs` | Java, Node.js 22+, Google Chrome and `npm i playwright` |
+| Multi-user group map against the Firebase emulators (about 5 minutes) | `npx firebase-tools emulators:start --only auth,database --project demo-huntlink`, then in another shell `node _qa/emulator-e2e.mjs` | Java, Node.js 22+, Google Chrome and `npm i playwright` |
 
 Use `/usr/bin/python3 _qa/run.py` to run both browsers. On an X11 system with graphics issues, prefix the WebKit command with `env GDK_BACKEND=x11 WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 

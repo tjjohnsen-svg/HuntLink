@@ -3,14 +3,14 @@ import { chromium, devices } from 'playwright';
 // it copies this checkout to a temporary folder and points the copy at 127.0.0.1 before serving it.
 // Prerequisites: Node 22+, `npm i playwright` and Google Chrome, Java, and the emulators running:
 //   npx firebase-tools emulators:start --only auth,database --project demo-huntlink
-// (with a firebase.json that loads ../database.rules.json; see _qa/README.md). Takes about 5 minutes.
+// (with a firebase.json that loads database.rules.json; see _qa/README.md). Takes about 5 minutes.
 import { createServer } from 'node:http';
 import { readFile, cp, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const work=await mkdtemp(path.join(tmpdir(),'huntlink-e2e-'));
-await cp(root,work,{recursive:true,filter:src=>!src.includes('/.git')&&!src.includes('/_qa')});
+for(const file of ['index.html','offline.html','offline.js','public-land.js','map-nav.css','waypoints.js','offline-states.json','sw.js','manifest.webmanifest','icon-192.png','icon-512.png','vendor']) await cp(path.join(root,file),path.join(work,file),{recursive:true});
 let page=await readFile(work+'/index.html','utf8');
 const swap=(a,b)=>{if(!page.includes(a))throw Error('patch failed: '+a);page=page.replace(a,b);};
 swap("import { getAuth, signInAnonymously, signOut }","import { getAuth, signInAnonymously, signOut, connectAuthEmulator }");
@@ -45,7 +45,14 @@ await admin('PUT','',{config:{groupPassword:PW}});
 
 // 3. no CDN: load + join with gstatic/unpkg blocked
 const A=await user('alice',{latitude:45.0,longitude:-115.0,accuracy:8});
-await join(A,'Alice Smith'); ok(true,'app loads and joins with gstatic/unpkg blocked (bundled Leaflet + Firebase)');
+await join(A,'Alice Smith');
+await A.page.evaluate(()=>navigator.serviceWorker.ready.then(()=>true));
+const cached=await A.page.evaluate(async()=>{
+  const urls=['vendor/leaflet/leaflet.js','vendor/leaflet/leaflet.css','vendor/firebase/firebase-app.js','vendor/firebase/firebase-auth.js','vendor/firebase/firebase-database.js'];
+  return (await Promise.all(urls.map(async url=>(await caches.match(new URL(url,location.href)))?.ok))).every(Boolean);
+});
+ok(cached,'service worker cached Leaflet and all three Firebase modules');
+ok(true,'app loads and joins with gstatic/unpkg blocked (bundled Leaflet + Firebase)');
 const B=await user('bob',{latitude:45.003,longitude:-115.002,accuracy:12}); await join(B,'Bob');
 await A.page.click('#share'); await A.page.waitForTimeout(3000);
 ok((await tone(A))==='tone-live' && (await txt(A,'status')).includes('Sharing live'),'status bar live: '+await txt(A,'status')+' | '+await txt(A,'statusDetail'));

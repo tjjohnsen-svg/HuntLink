@@ -263,13 +263,13 @@ async function fetchTile(tile, signal) {
 }
 async function download(resume=false) {
   if (controller) return;
-  if (!plan && !pending) return;
+  if (resume ? !pending : !plan) return;
   const active=new AbortController(); controller=active;
   let job, loadingLand=false, progressAt=Date.now(), failure;
   controls();
   const stall=setInterval(()=>{ if (Date.now()-progressAt>STALL) active.abort(); },5000);
   try {
-    if (pending && (resume===true || !plan || samePlan(pending,plan))) job=pending;
+    if (pending && (resume===true || (plan && samePlan(pending,plan) && pending.includeLand===$('landToggle').checked))) job=pending;
     else {
       await discardPending();
       if (areas.length>=MAX_AREAS) throw Object.assign(Error('Too many areas'),{full:true});
@@ -293,14 +293,14 @@ async function download(resume=false) {
     const todo=job.tiles.filter(t=>!have.has(tileKey(job.id,t)));
     let saved=job.tiles.length-todo.length, next=0, bytes=blobs.reduce((n,b)=>n+(b?.size||0),0);
     $('progress').max=job.tiles.length; $('progress').value=saved;
-    $('status').textContent=(saved?'Resuming download · '+saved+' of '+job.tiles.length+' tiles already saved.':'Downloading the outlined area.')+' Keep HuntLink open.';
+    $('status').textContent=(saved?'Resuming download · '+saved+' of '+job.tiles.length+' tiles already saved.':'Downloading the outlined area.')+' Keep HuntLinq open.';
     async function worker() {
       try {
         while (next<todo.length && !active.signal.aborted) {
           const tile=todo[next++];
           const blob=await fetchTile(tile,active.signal);
           bytes+=blob.size;
-          if (bytes>48*1048576) throw Error('Area exceeds storage limit');
+          if (bytes+(job.landBytes||0)>48*1048576) throw Error('Area exceeds storage limit');
           const tx=db.transaction('tiles','readwrite'), done=finished(tx);
           tx.objectStore('tiles').put(blob,tileKey(job.id,tile)); await done;
           saved++; progressAt=Date.now(); $('progress').value=saved;
@@ -381,7 +381,10 @@ try {
   states=await (await fetch('./offline-states.json')).json();
   area=await readAreas();
   showGroup();
+  window.addEventListener('storage',e=>{if (!e.key || e.key==='huntlinkLastKnown') showGroup();});
+  window.addEventListener('pageshow',showGroup);
+  setInterval(showGroup,60000);
   if (area) showSaved(); else choose();
 } catch {
-  $('status').textContent='Offline storage is unavailable. Open HuntLink online in a browser with device storage enabled and try again.';
+  $('status').textContent='Offline storage is unavailable. Open HuntLinq online in a browser with device storage enabled and try again.';
 }

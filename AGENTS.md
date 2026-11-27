@@ -1,6 +1,6 @@
-# HuntLink development requirements
+# HuntLinq development requirements
 
-HuntLink is a free, mobile-first hunting group location-sharing app hosted on GitHub Pages. It uses Leaflet with free USGS aerial and topographic maps, Firebase authentication and live location sharing, and a name and shared group password for entry. Hunters can install it as a Progressive Web App on Android and iPhone. The existing app has worked on multiple phones.
+HuntLinq is a free, mobile-first hunting group location-sharing app hosted on GitHub Pages. It uses Leaflet with free USGS aerial and topographic maps, Firebase authentication and live location sharing, and a name and shared group password for entry. Hunters can install it as a Progressive Web App on Android and iPhone. The existing app has worked on multiple phones.
 
 - Keep the app free to operate within existing service limits.
 - Prioritize simplicity, speed, reliability, and ease of use outdoors.

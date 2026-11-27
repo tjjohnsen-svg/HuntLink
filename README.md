@@ -1,4 +1,4 @@
-# HuntLink
+# HuntLinq
 Free private GPS location sharing for hunting groups.
 
 ## Where to find things

@@ -149,7 +149,7 @@ ok(markers.get('x1').getTooltip().getContent().textContent==='Sam Hill (x1) · 3
 if($('friends').hidden)$('huntersTool').click();const focused=$('friends').querySelector('[data-id="x2"]');focused.focus();ok(document.activeElement===focused,'hunter button focusable');
 now+=5000;listeners.locations({x1:mk('Sam Hill',1000),x2:mk('Sam Hill',2000),x3:mk('Jo',2*3600000)});tick();
 ok(document.activeElement===focused&&$('friends').querySelector('[data-id="x2"]')===focused,'list updates in place and keeps focus');
-const cache=JSON.parse(localStorage.getItem('huntlinkLastKnown'));ok(cache.hunters.length===3&&cache.hunters.some(h=>h.name==='Jo'),'last-known spots cached on device');
+const cache=JSON.parse(localStorage.getItem('huntlinkLastKnown'));ok(cache.hunters[0].time===now-1000,'stationary hunter refreshes offline measurement time');ok(cache.hunters.length===3&&cache.hunters.some(h=>h.name==='Jo'),'last-known spots cached on device');
 $('fitAll').click();ok(map.getBounds().contains([0.002,0]),'show everyone fits hunters');
 ok(!$('notice').hidden||localStorage.getItem('huntlinkTipSeen'),'tip shown until dismissed');$('dismissNotice').click();ok($('notice').hidden&&localStorage.getItem('huntlinkTipSeen'),'tip dismissible');
 $('share').click();await flush();ok(!localStorage.getItem('huntlinkSharing')&&wakeReleases===releaseBase+1,'stop clears sharing intent and releases screen');

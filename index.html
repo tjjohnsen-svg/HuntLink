@@ -17,11 +17,12 @@
 *{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:#192b23;color:#fff;font:15px system-ui,sans-serif} button,input{font:inherit} button{cursor:pointer;border:0;border-radius:9px;padding:11px 14px;font-weight:650;background:#e8eee9;color:#192b23} button:disabled{opacity:.5;cursor:default} .primary{background:#c7e79a;color:#192b23} .danger{background:#f5c5bd;color:#651e17} header{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;gap:8px} h1{font-size:23px;margin:0} #app{height:100vh;height:100dvh;display:flex;flex-direction:column} #map{flex:1;min-height:0;background:#324439} #panel{padding:10px 14px max(12px,env(safe-area-inset-bottom));display:grid;gap:8px} .buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons button{flex:1} #status,#connection,#notice{font-size:13px;line-height:1.4;color:#e0e9e0} #notice{color:#ffdf9c} #friends{display:flex;gap:7px;overflow-x:auto} #friends button{flex-shrink:0;text-align:left;font-size:12px;padding:7px 10px} #login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px} form{width:min(100%,380px);padding:24px;background:#263c30;border:1px solid #506557;border-radius:16px;display:grid;gap:12px} form h1{font-size:32px} form p{margin:0;line-height:1.5;color:#e0e9e0} label{display:grid;gap:5px} input{width:100%;border:1px solid #829789;border-radius:8px;padding:12px;background:#f5f7f4;color:#192b23} #error{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere} .leaflet-tooltip.hunter-label{font-weight:650;white-space:nowrap;color:#fff;background:#192b23;border:0;box-shadow:0 1px 4px #0006} .leaflet-tooltip.hunter-label:before{display:none}
 #landNotice{font-size:13px;color:#daf5d9}.leaflet-control-layers input{width:auto}.leaflet-control-layers label{display:block}
 .offlineLink{color:#daf5d9;padding:8px;text-align:center}header .offlineLink{margin-left:auto}
+#hunterDetails{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#263c30;padding:8px 10px;border-radius:8px}#hunterReading{overflow-wrap:anywhere}#closeDetails{flex:none}
 </style>
 </head>
 <body>
 <section id="login"><form id="loginForm"><h1>🌲 HuntLink</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit" disabled>Enter HuntLink</button><p>Sharing is off until you turn it on.  Everyone with the group password can see your shared location.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><div id="error" role="status">Connecting...</div></form></section>
-<section id="app" hidden><header><div><h1>🌲 HuntLink</h1><div id="connection">Connecting...</div></div><a class="offlineLink" href="./offline.html">Offline topo</a><button id="logout">Leave group</button></header><div id="map"></div><div id="panel"><div id="status" role="status">GPS not started. Sharing off.</div><div class="buttons"><button id="locate">◎ My location</button><button id="share" class="primary">Start sharing</button></div><div id="friends"></div><div id="landNotice" role="status" hidden></div><div id="notice">Keep this page open. GPS sharing needs internet and is not a safety or emergency service.</div></div></section>
+<section id="app" hidden><header><div><h1>🌲 HuntLink</h1><div id="connection">Connecting...</div></div><a class="offlineLink" href="./offline.html">Offline topo</a><button id="logout">Leave group</button></header><div id="map"></div><div id="panel"><div id="status" role="status">GPS not started. Sharing off.</div><div class="buttons"><button id="locate">◎ My location</button><button id="share" class="primary">Start sharing</button></div><div id="friends"></div><div id="hunterDetails" hidden><span id="hunterReading" role="status"></span><button id="closeDetails" aria-label="Close hunter details">Close</button></div><div id="landNotice" role="status" hidden></div><div id="notice">Keep this page open. GPS sharing needs internet and is not a safety or emergency service.</div></div></section>
 <script type="module">
 import { addPublicLand } from "./public-land.js";
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
@@ -54,25 +55,71 @@ function status(s){$('status').textContent=s}
 function connection(){ $('connection').textContent=connected?'Connected to group':'Offline · locations may be stale'; }
 function updateSharing(){ $('share').textContent=sharing?'Stop sharing':'Start sharing'; $('share').className=sharing?'danger':'primary'; $('share').disabled=busy; }
 function safeText(s){const e=document.createElement('span'); e.textContent=s; return e;}
+let selectedHunter=null, detailOnlyGPS=false;
+function fixAge(p){
+ const measured=Number.isFinite(p.measuredAt);
+ const time=measured?Math.min(p.measuredAt,p.updatedAt):p.updatedAt;
+ return Math.max(0,(Date.now()+offset-time)/1000);
+}
+function compassDirection(from,to){
+ const rad=Math.PI/180, a=from.lat*rad, b=to.lat*rad, delta=(to.lng-from.lng)*rad;
+ const degrees=Math.atan2(Math.sin(delta)*Math.cos(b),Math.cos(a)*Math.sin(b)-Math.sin(a)*Math.cos(b)*Math.cos(delta))/rad;
+ return ['N','NE','E','SE','S','SW','W','NW'][Math.round((degrees+360)/45)%8];
+}
+function closeDetails(){
+ selectedHunter=null;
+ $('hunterDetails').hidden=true;
+ $('hunterReading').textContent='';
+ if(detailOnlyGPS){detailOnlyGPS=false;stopGPS();if(joined)status('GPS stopped. Sharing off.');}
+}
+$('closeDetails').onclick=closeDetails;
+function updateDetails(){
+ if(selectedHunter===null)return;
+ const p=locations[selectedHunter];
+ if(!joined||!p||!markers.has(selectedHunter)||fixAge(p)>120){closeDetails();return;}
+ const age=Math.floor(fixAge(p));
+ const when=Number.isFinite(p.measuredAt)
+   ? ((connected&&age<30)?'GPS fix ':'Last known fix ')+age+'s ago'
+   : 'Received '+age+'s ago (GPS fix age unknown)';
+ let reading='Waiting for your GPS fix';
+ if(fix && Date.now()-fix.time<30000 && Date.now()>=fix.time){
+   const meters=L.latLng(fix).distanceTo(p);
+   const yards=Math.round(meters/0.9144);
+   const uncertainty=fix.accuracy+(Number.isFinite(p.accuracy)?p.accuracy:0);
+   const direction=meters<=uncertainty?'direction uncertain within GPS accuracy':compassDirection(fix,p)+' (true north)';
+   reading='Est. '+yards.toLocaleString()+' yd · '+direction;
+ }else if(watch===null){reading='Tap My location for distance and direction';}
+ else if(fix){reading='Waiting for a fresh fix from your phone';}
+ $('hunterReading').textContent=String(p.name||'Hunter')+' · '+reading+' · '+when;
+ $('hunterDetails').hidden=false;
+}
+function selectHunter(id){
+ const p=locations[id];
+ if(!joined||!p||fixAge(p)>120)return;
+ selectedHunter=id;
+ map.setView([p.lat,p.lng],16);
+ if(watch===null)detailOnlyGPS=startGPS();
+ updateDetails();
+}
 function render(){
  if(!joined)return;
  const seen=new Set(); $('friends').replaceChildren();
  for(const [id,p] of Object.entries(locations||{})){
   if(id===uid||!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||!Number.isFinite(p.updatedAt))continue;
   const measured=Number.isFinite(p.measuredAt);
-  const time=measured?Math.min(p.measuredAt,p.updatedAt):p.updatedAt;
-  const age=Math.max(0,(Date.now()+offset-time)/1000);
+  const age=fixAge(p);
   if(age>120)continue;
   const live=measured&&age<30&&connected;
   const when=(measured?(live?'GPS fix ':'Last seen '):'Received ')+Math.floor(age)+'s ago';
   const accuracy=Number.isFinite(p.accuracy)&&p.accuracy>=0?' · ±'+Math.round(p.accuracy*3.28084)+' ft':'';
   const label=String(p.name||'Hunter')+' · '+when+accuracy;
   seen.add(id); let marker=markers.get(id);
-  if(!marker){marker=L.circleMarker([p.lat,p.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1});marker.addTo(map);marker.bindTooltip(safeText(label),{permanent:true,direction:'top',className:'hunter-label'});markers.set(id,marker);}
+  if(!marker){marker=L.circleMarker([p.lat,p.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1});marker.on('click',()=>selectHunter(id));marker.addTo(map);marker.bindTooltip(safeText(label),{interactive:true,permanent:true,direction:'top',className:'hunter-label'});markers.set(id,marker);}
   marker.setLatLng([p.lat,p.lng]);marker.setStyle({fillColor:live?'#39b66b':'#929a9f'});marker.setTooltipContent(safeText(label));
-  const b=document.createElement('button'); b.textContent=label; b.onclick=()=>map.setView([p.lat,p.lng],16); $('friends').append(b);
+  const b=document.createElement('button'); b.textContent=label; b.onclick=()=>selectHunter(id); $('friends').append(b);
  }
  for(const [id,m] of markers){if(!seen.has(id)){m.remove();markers.delete(id);}}
+ updateDetails();
  if(!seen.size)$('friends').append(safeText('No other recent shared locations.'));
 }
 function openMap(){
@@ -106,8 +153,9 @@ function startGPS(highAccuracy=true){
   const {latitude:lat,longitude:lng,accuracy}=p.coords;
   if(!Number.isFinite(p.timestamp)||p.timestamp>Date.now()||(fix&&p.timestamp<fix.time))return;
   fix={lat,lng,accuracy,time:p.timestamp,measuredAt:Math.round(p.timestamp+offset)};
-  if(!ownMarker){circle=L.circle([lat,lng],{radius:accuracy,color:'#1683ff',weight:1,fillOpacity:.12}).addTo(map);ownMarker=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:3,fillColor:'#1683ff',fillOpacity:1}).addTo(map).bindTooltip('You',{permanent:true,direction:'top',className:'hunter-label'});map.setView([lat,lng],16);}
+  if(!ownMarker){circle=L.circle([lat,lng],{radius:accuracy,color:'#1683ff',weight:1,fillOpacity:.12}).addTo(map);ownMarker=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:3,fillColor:'#1683ff',fillOpacity:1}).addTo(map).bindTooltip('You',{permanent:true,direction:'top',className:'hunter-label'});if(selectedHunter===null)map.setView([lat,lng],16);}
   else{ownMarker.setLatLng([lat,lng]);circle.setLatLng([lat,lng]).setRadius(accuracy);}
+  updateDetails();
   if(!sharing)status('GPS accuracy: '+Math.round(accuracy*3.28084)+' ft · Sharing off');
   else if(!connected)status('Offline · not sending your location');
   void publishFix();
@@ -129,7 +177,7 @@ function startGPS(highAccuracy=true){
  },{enableHighAccuracy:highAccuracy,maximumAge:5000,timeout:20000});
  return true;
 }
-$('locate').onclick=()=>{if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
+$('locate').onclick=()=>{detailOnlyGPS=false;if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
 async function arm(){
  if(!joined||!sharing||!connected)return;
  const generation=epoch;
@@ -157,7 +205,7 @@ function stopGPS(){
  watch=null;fix=null;
  if(ownMarker)ownMarker.remove();
  if(circle)circle.remove();
- ownMarker=null;circle=null;
+ ownMarker=null;circle=null;updateDetails();
 }
 function stopLocally(){
  sharing=false;armed=false;epoch++;stopGPS();updateSharing();
@@ -178,7 +226,7 @@ $('share').onclick=()=>{
  if(sharing){void stopSharing();return;}
  if(!connected){status('Connect to the internet before sharing.');return;}
  if(!startGPS())return;
- sharing=true;armed=false;epoch++;lastSent=0;lastFixSent=null;updateSharing();status('Preparing live sharing...');void arm();
+ detailOnlyGPS=false;sharing=true;armed=false;epoch++;lastSent=0;lastFixSent=null;updateSharing();status('Preparing live sharing...');void arm();
 };
 // Retain only the anonymous ID needed to retry an interrupted leave after reload.
 function showPendingLeave(){

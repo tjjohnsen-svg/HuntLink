@@ -41,7 +41,8 @@ async function user(label, geo, {perms=['geolocation'],init,block}={}){
   const page=await ctx.newPage(); page.on('pageerror',e=>log(label,'PAGEERROR:',e.message));
   await page.goto(APP); return {ctx,page,label};
 }
-async function join(u,name){await u.page.waitForFunction(()=>!document.getElementById('enter').disabled,null,{timeout:20000});await u.page.fill('#name',name);await u.page.fill('#password',PW);await u.page.click('#enter');await u.page.waitForSelector('#app:not([hidden])',{timeout:10000});}
+async function useLegacy(u){await u.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000});if(await u.page.locator('#useLegacy').isVisible())await u.page.click('#useLegacy');}
+async function join(u,name){await useLegacy(u);await u.page.waitForFunction(()=>!document.getElementById('enter').disabled,null,{timeout:20000});await u.page.fill('#name',name);await u.page.fill('#password',PW);await u.page.click('#enter');await u.page.waitForSelector('#app:not([hidden])',{timeout:10000});}
 async function enterAgain(u,pw=PW,expectIn=pw===PW){await u.page.waitForFunction(()=>!document.getElementById('enter').disabled,null,{timeout:20000});await u.page.fill('#password',pw);await u.page.click('#enter');if(expectIn)await u.page.waitForSelector('#app:not([hidden])',{timeout:10000});else await u.page.waitForTimeout(2500);}
 const val=(u,id)=>u.page.locator('#'+id).inputValue();
 const notes=path.resolve(root,'..','huntlink-qa-notes','qa4')+'/';
@@ -145,7 +146,7 @@ await admin('PUT','config/groupPassword',PW);
 // 3. vendor files blocked -> watchdog
 const E=await user('erin',{latitude:45,longitude:-115},{block:/vendor\/firebase/});
 await E.page.waitForTimeout(2500);
-ok((await txt(E,'error')).includes("HuntLinq couldn't finish loading") && await E.page.locator('#reload').isVisible(),'load failure explained with Reload: '+await txt(E,'error'));
+ok((await txt(E,'startNote')).includes("HuntLinq couldn't finish loading") && await E.page.locator('#start').isVisible() && await E.page.locator('#startReload').isVisible(),'load failure explained on the Start screen with Reload: '+await txt(E,'startNote'));
 await E.page.screenshot({path:shots+'05-load-failure.png'});
 await A.page.screenshot({path:shots+'06-alice.png'});
 // Leave group still works after a return, and the next launch starts blank

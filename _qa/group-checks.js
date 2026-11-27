@@ -1,5 +1,16 @@
 const online=v=>listeners['.info/connected'](v), sample=(t=now)=>gps({coords:{latitude:0.001,longitude:0.002,accuracy:12},timestamp:t});
 ok(document.title==='HuntLinq','login page title is HuntLinq');
+// A first visit opens on Start: start a group, join with a code, or use the original group password.
+ok(!$('start').hidden&&$('login').hidden&&$('app').hidden,'first visit opens on the Start screen');
+ok($('startGroup').textContent==='Start a group'&&$('joinWithCode').textContent==='Join with a code','Start offers Start a group and Join with a code');
+ok($('start').textContent.includes('No account needed')&&[...$('start').querySelectorAll('a')].some(a=>a.getAttribute('href')==='./privacy.html'),'Start says no account is needed and links to privacy');
+$('startGroup').click();ok(!$('create').hidden&&$('start').hidden&&$('create').textContent.includes('Use any name you want'),'Start a group opens the create form with the name hint');
+$('create').querySelector('.back').click();ok(!$('start').hidden,'Back returns to Start');
+$('joinWithCode').click();ok(!$('code').hidden&&$('codeInput').placeholder==='K7P-4QX','Join with a code asks for the 6-character code');
+$('codeInput').value='abc';$('codeForm').dispatchEvent(new Event('submit',{cancelable:true}));await flush();ok($('codeError').textContent.includes('6 letters'),'a short code is caught before going online');
+$('code').querySelector('.back').click();
+$('useLegacy').click();ok(!$('login').hidden&&$('start').hidden,'the original group password login is still one tap away');
+ok($('groupTool').hidden,'the Group tool stays hidden for the original password group');
 ok(document.querySelector('#login h1')?.textContent.includes('HuntLinq')&&$('enter').textContent==='Enter HuntLinq','login heading and enter button say HuntLinq');
 ok(!document.body.innerText.includes('HuntLink'),'login screen has no HuntLink text');
 ok($('nameHint').textContent.includes('Use any name you want')&&$('name').parentElement.contains($('nameHint')),'name field explains any name works');
@@ -7,7 +18,7 @@ ok($('loginNote').hidden,'first launch shows no welcome-back note');
 ok($('name').closest('form')===$('loginForm')&&$('password').closest('form')===$('loginForm')&&$('enter').type==='submit'&&$('loginForm').contains($('enter')),'name, password and Enter button are in one real form');
 ok($('name').autocomplete==='username'&&$('name').name==='username'&&$('name').type==='text','name field is the username for password managers');
 ok($('password').type==='password'&&$('password').autocomplete==='current-password'&&$('password').name==='password','password field is a current-password for password managers');
-ok(document.querySelector('label').contains($('name'))&&$('nameHint').offsetParent!==null,'name keeps its visible label and helper text');
+ok($('name').closest('label')?.contains($('nameHint'))&&$('nameHint').offsetParent!==null,'name keeps its visible label and helper text');
 const join=async pass=>{$('name').value='Tester';$('password').value=pass;$('loginForm').dispatchEvent(new Event('submit',{cancelable:true}));await flush()};
 await join('denied');ok($('app').hidden&&$('error').textContent.includes('Incorrect'),'denied login');
 await join('test-only');ok(!$('app').hidden&&!running&&records.length===0,'join private');
@@ -17,7 +28,7 @@ map.invalidateSize();const size=map.getSize();ok(size.x>200&&size.y>100,'usable 
 ok(document.documentElement.scrollWidth<=innerWidth,'portrait fits horizontally');map.removeLayer(aerial);map.addLayer(topo);ok(map.hasLayer(topo),'topo selectable');
 const rail=document.querySelector('#app nav');
 ok(rail.getBoundingClientRect().right<=map.getContainer().getBoundingClientRect().left+1,'navigation sits left of map');
-ok([...rail.children].every(tool=>tool.offsetHeight>=44 && tool.querySelector('svg') && tool.textContent.trim()),'labeled icon touch targets');
+ok([...rail.children].filter(tool=>!tool.hidden).every(tool=>tool.offsetHeight>=44 && tool.querySelector('svg') && tool.textContent.trim()),'labeled icon touch targets');
 $('layersTool').click();
 ok(!$('layerOptions').hidden && $('layerOptions').contains(layers.getContainer()),'layers accessible from navigation');
 const baseChoices=$('layerOptions').querySelectorAll('input');

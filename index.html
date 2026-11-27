@@ -17,7 +17,7 @@
 (()=>{
  const fail=()=>{
   if(window.huntlinkReady)return;
-  const show=()=>{const e=document.getElementById('error'),r=document.getElementById('reload');if(e)e.textContent="HuntLinq couldn't finish loading. Check your signal, then tap Reload. Saved offline topo maps still work.";if(r)r.hidden=false;};
+  const show=()=>{const e=document.getElementById('error'),r=document.getElementById('reload');const msg="HuntLinq couldn't finish loading. Check your signal, then tap Reload. Saved offline topo maps still work.";if(e)e.textContent=msg;if(r)r.hidden=false;const n=document.getElementById('startNote'),b=document.getElementById('startReload');if(n){n.textContent=msg;n.hidden=false;}if(b)b.hidden=false;if([...document.querySelectorAll('.screen,#login,#app')].every(x=>x.hidden))document.getElementById('start').hidden=false;};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show);else show();
  };
  window.addEventListener('error',e=>{if(e.target&&e.target.tagName==='SCRIPT')fail();},true);
@@ -26,11 +26,13 @@
 </script>
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script src="./vendor/leaflet/leaflet.js"></script>
+<script src="./vendor/qrcode/qrcode.js"></script>
 <style>
-*{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:#192b23;color:#fff;font:15px system-ui,sans-serif} button,input{font:inherit} button{cursor:pointer;border:0;border-radius:9px;padding:11px 14px;font-weight:650;background:#e8eee9;color:#192b23} button:disabled{opacity:.5;cursor:default} .primary{background:#c7e79a;color:#192b23} .danger{background:#f5c5bd;color:#651e17} header{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;gap:8px} h1{font-size:23px;margin:0} #app{height:100vh;height:100dvh;display:flex;flex-direction:column} #map{flex:1;min-height:0;background:#324439} #panel{padding:10px 14px max(12px,env(safe-area-inset-bottom));display:grid;gap:8px} .buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons button{flex:1} #notice{font-size:13px;line-height:1.4;color:#e0e9e0} #notice{color:#ffdf9c} #friends{display:flex;gap:7px;overflow-x:auto} #friends button{flex-shrink:0;text-align:left;font-size:12px;padding:7px 10px} #login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px} form{width:min(100%,380px);padding:24px;background:#263c30;border:1px solid #506557;border-radius:16px;display:grid;gap:12px} form h1{font-size:32px} form p{margin:0;line-height:1.5;color:#e0e9e0} label{display:grid;gap:5px} input{width:100%;border:1px solid #829789;border-radius:8px;padding:12px;background:#f5f7f4;color:#192b23} #error{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere} .leaflet-tooltip.hunter-label{font-weight:650;white-space:nowrap;color:#fff;background:#192b23;border:0;box-shadow:0 1px 4px #0006} .leaflet-tooltip.hunter-label:before{display:none}
+*{box-sizing:border-box} [hidden]{display:none!important} body{margin:0;background:#192b23;color:#fff;font:15px system-ui,sans-serif} button,input{font:inherit} button{cursor:pointer;border:0;border-radius:9px;padding:11px 14px;font-weight:650;background:#e8eee9;color:#192b23} button:disabled{opacity:.5;cursor:default} .primary{background:#c7e79a;color:#192b23} .danger{background:#f5c5bd;color:#651e17} header{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;gap:8px} h1{font-size:23px;margin:0} #app{height:100vh;height:100dvh;display:flex;flex-direction:column} #map{flex:1;min-height:0;background:#324439} #panel{padding:10px 14px max(12px,env(safe-area-inset-bottom));display:grid;gap:8px} .buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons button{flex:1} #notice{font-size:13px;line-height:1.4;color:#e0e9e0} #notice{color:#ffdf9c} #friends{display:flex;gap:7px;overflow-x:auto} #friends button{flex-shrink:0;text-align:left;font-size:12px;padding:7px 10px} #login,.screen{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px} form,.card{width:min(100%,380px);padding:24px;background:#263c30;border:1px solid #506557;border-radius:16px;display:grid;gap:12px} form h1{font-size:32px} form p{margin:0;line-height:1.5;color:#e0e9e0} label{display:grid;gap:5px} input{width:100%;border:1px solid #829789;border-radius:8px;padding:12px;background:#f5f7f4;color:#192b23} #error{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere} .leaflet-tooltip.hunter-label{font-weight:650;white-space:nowrap;color:#fff;background:#192b23;border:0;box-shadow:0 1px 4px #0006} .leaflet-tooltip.hunter-label:before{display:none}
 .map-tools #publicLandTool[aria-pressed="true"]{background:#c7e79a;color:#192b23}
 #landNotice{font-size:13px;color:#daf5d9}.leaflet-control-layers input{width:auto}.leaflet-control-layers label{display:block}
 .offlineLink,.privacyLink{color:#daf5d9;padding:8px;text-align:center} .hint{font-size:13px;line-height:1.4;color:#c9d6cb} #loginNote{color:#ffdf9c;font-size:14px}header .offlineLink{margin-left:auto}
+.card h1{font-size:32px;margin:0}.card p{margin:0;line-height:1.5;color:#e0e9e0}.linkish{background:none;color:#daf5d9;text-decoration:underline;font-weight:500;padding:8px}.formError{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere}.note{color:#ffdf9c;font-size:14px;line-height:1.4}#groupLabel{font-size:15px;color:#daf5d9;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}#groupPanel{display:grid;gap:10px;background:#263c30;border-radius:8px;padding:10px;max-height:52vh;overflow:auto}#groupPanel h2{font-size:16px;margin:0}#groupPanel p{margin:0;font-size:14px;line-height:1.4;color:#e0e9e0}#qr{display:grid;place-items:center}#qr svg{width:150px;height:150px;background:#fff;border-radius:8px}#inviteCode{font:700 26px/1.2 ui-monospace,monospace;letter-spacing:.12em;text-align:center}#inviteLink{font-size:13px;padding:8px}#memberList{list-style:none;margin:0;padding:0;display:grid;gap:6px}#memberList li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;min-height:36px}#memberList .who{flex:1;min-width:8em}#memberList .tag{font-size:12px;border-radius:99px;padding:2px 8px;background:#3a5243;color:#e0e9e0}#memberList button{padding:6px 10px;font-size:13px}
 #whoSees{background:#263c30;border-radius:8px;padding:8px 10px;font-size:14px;line-height:1.4}#whoSees p{margin:2px 0 0;color:#e0e9e0}#whoSees a{color:#daf5d9}#sharingOptions{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}#shareForOption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}#shareFor{font:inherit;padding:6px 8px;border-radius:8px;max-width:100%}
 #hunterDetails{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#263c30;padding:8px 10px;border-radius:8px}#hunterReading{overflow-wrap:anywhere}#closeDetails{flex:none}
 #statusBar{border-radius:9px;padding:8px 10px;background:#2c4234;border-left:6px solid #8fa596}#statusBar.tone-live{border-left-color:#5fd38a;background:#1f4a30}#statusBar.tone-weak{border-left-color:#ffc94d;background:#4a3f1c}#statusBar.tone-offline{border-left-color:#ff8a7a;background:#4d2621}
@@ -43,13 +45,22 @@
 <link rel="stylesheet" href="./map-nav.css">
 </head>
 <body>
-<section id="login"><form id="loginForm" method="post" action="./" autocomplete="on"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" name="username" maxlength="50" required autocomplete="username" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint" id="nameHint">Use any name you want — it's what your group sees on the map.</small></label><label>Hunt group password<input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Shared password"></label><p id="loginNote" role="status" hidden></p><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><a class="privacyLink" href="./privacy.html">Privacy</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
+<section id="start" class="screen" hidden><div class="card"><h1>🌲 HuntLinq</h1><p>See your hunting party on the map.</p><p id="startNote" class="note" role="status" hidden></p><button class="primary" id="startGroup" type="button">Start a group</button><button id="joinWithCode" type="button">Join with a code</button><p class="hint">No account needed. Your location stays private until you tap Start sharing.</p><button id="startReload" type="button" hidden onclick="location.reload()">Reload</button><button id="useLegacy" class="linkish" type="button">Have the original group password? Use it here</button><a class="offlineLink" href="./offline.html">Offline topo maps</a><a class="privacyLink" href="./privacy.html">Privacy</a></div></section>
+<section id="create" class="screen" hidden><form id="createForm" method="post" action="./" autocomplete="off"><h1>Start a group</h1><label>Group name<input id="groupNameInput" maxlength="40" required autocapitalize="words" placeholder="Elk camp 2026"></label><label>Your name<input id="createName" maxlength="50" required autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint">Use any name you want — it's what your group sees on the map.</small></label><button class="primary" id="createGo" type="submit">Create group</button><p class="hint">You'll be the group leader. You can invite people and make a new code anytime.</p><div class="formError" id="createError" role="status"></div><button type="button" class="back">Back</button></form></section>
+<section id="code" class="screen" hidden><form id="codeForm" method="post" action="./" autocomplete="off"><h1>Join with a code</h1><p>Ask someone in the group for its 6-character code. Codes work for 3 days.</p><label>Group code<input id="codeInput" maxlength="9" required autocapitalize="characters" spellcheck="false" placeholder="K7P-4QX"></label><button class="primary" id="codeGo" type="submit">Continue</button><div class="formError" id="codeError" role="status"></div><button type="button" class="back">Back</button></form></section>
+<section id="join" class="screen" hidden><form id="joinForm" method="post" action="./" autocomplete="off"><h1 id="joinTitle">Checking your invite…</h1><p id="joinWho"></p><label>Your name<input id="joinName" maxlength="50" required autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint">Use any name you want — it's what your group sees on the map.</small></label><button class="primary" id="joinGo" type="submit" disabled>Join group</button><p class="hint">Members see your location only while you're sharing. You can leave anytime.</p><div class="formError" id="joinError" role="status"></div><button type="button" class="back">Not now</button><a class="privacyLink" href="./privacy.html">Privacy</a></form></section>
+<section id="login" hidden><form id="loginForm" method="post" action="./" autocomplete="on"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" name="username" maxlength="50" required autocomplete="username" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint" id="nameHint">Use any name you want — it's what your group sees on the map.</small></label><label>Hunt group password<input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Shared password"></label><p id="loginNote" role="status" hidden></p><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><button type="button" class="back" id="legacyBack">Back to start</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><a class="privacyLink" href="./privacy.html">Privacy</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
+<script>
+// Pick the first screen right away: an invite link, a remembered group (straight to the map), the original password login, or Start.
+(()=>{let s='start';try{if(/^#join=/.test(location.hash))s='join';else if(localStorage.getItem('huntlinkGroup'))s='';else if(localStorage.getItem('huntlinkName')||localStorage.getItem('huntlinkPendingLeave'))s='login';}catch{}if(s)document.getElementById(s).hidden=false;})();
+</script>
 <section id="app" hidden>
-<header><h1>🌲 HuntLinq</h1></header>
+<header><h1>🌲 HuntLinq</h1><span id="groupLabel" hidden></span></header>
 <nav class="map-tools" aria-label="Group map tools">
   <button id="locate"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg><span>My location</span></button>
   <button id="share" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="5" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8 11 7-4m-7 6 7 4"/></svg><span>Start sharing</span></button>
   <button id="huntersTool" aria-controls="friends" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2m0-16a3 3 0 0 1 0 6m3 3a5 5 0 0 1 3 5v2"/></svg><span>Hunters</span></button>
+  <button id="groupTool" aria-controls="groupPanel" aria-expanded="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2z"/></svg><span>Group</span></button>
   <button id="layersTool" aria-controls="layerOptions" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 8 10-5 10 5-10 5zm0 5 10 5 10-5m-20 5 10 5 10-5"/></svg><span>Topo/Sat</span></button>
   <button id="publicLandTool" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 8-3 10 3-2 13-9 2-7-5zM11 3l-1 18m1-10 9 3"/></svg><span>Public land</span></button>
   <a href="./offline.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 5 7-3 6 3 7-3v17l-7 3-6-3-7 3zm7-3v17m6-14v17"/></svg><span>Offline topo</span></a>
@@ -59,6 +70,7 @@
 <div id="panel">
 <div id="statusBar" class="tone-off"><div class="statusLine"><span id="connection" class="pill">Connecting…</span><span id="status" role="status">GPS not started. Sharing off.</span></div><div id="statusDetail"></div></div>
 <div id="layerOptions" hidden></div>
+<div id="groupPanel" hidden><h2 id="inviteHeading">Invite your group</h2><div id="qr" role="img" aria-label="QR code for the invite link"></div><div id="inviteCode"></div><p id="inviteHint"></p><div class="buttons"><button id="shareInvite" class="primary" type="button">Share invite link</button><button id="copyCode" type="button">Copy code</button><button id="newCode" type="button" hidden>New code</button></div><input id="inviteLink" readonly aria-label="Invite link"><p id="inviteStatus" role="status"></p><h2>Members</h2><ul id="memberList"></ul></div>
 <div id="hunterList" hidden><div id="whoSees" role="note"><b>Who can see you</b><p id="whoSeesText"></p></div><div id="friends"></div><button id="fitAll" type="button">Show everyone on the map</button></div>
 <div id="hunterDetails" hidden><span id="hunterReading" role="status"></span><button id="closeDetails" aria-label="Close hunter details">Close</button></div><div id="landNotice" role="status" hidden></div>
 <div id="sharingOptions" hidden><label id="shareForOption">Auto-stop <select id="shareFor"><option value="0">Never, until I stop</option><option value="2">After 2 hours</option><option value="4">After 4 hours</option><option value="8">After 8 hours</option><option value="12">After 12 hours</option></select></label><label id="awakeOption"><input id="keepAwake" type="checkbox" checked> Keep screen on while sharing</label></div>
@@ -68,7 +80,7 @@
 import { addPublicLand } from "./public-land.js";
 import { initializeApp } from './vendor/firebase/firebase-app.js';
 import { getAuth, signInAnonymously, signOut } from './vendor/firebase/firebase-auth.js';
-import { getDatabase, ref, set, remove, onValue, serverTimestamp } from './vendor/firebase/firebase-database.js';
+import { getDatabase, ref, set, remove, onValue, serverTimestamp, update, get } from './vendor/firebase/firebase-database.js';
 const app = initializeApp({
  apiKey:'AIzaSyAbiYap0fe2P1CmRcL1evCIZcB4zwFxhcs',
  authDomain:'huntlink-9c932.firebaseapp.com',
@@ -101,14 +113,14 @@ parcelButton.onclick=()=>{
 };
 $('layerOptions').append(layers.getContainer());
 function showTools(active) {
- for(const [button, panel] of [['huntersTool','friends'], ['layersTool','layerOptions']]){
+ for(const [button, panel] of [['huntersTool','friends'], ['layersTool','layerOptions'], ['groupTool','groupPanel']]){
   const open=button===active;
   $(button).setAttribute('aria-expanded',String(open));
   $(panel).hidden=!open;
  }
  $('hunterList').hidden=$('friends').hidden;
 }
-for(const id of ['huntersTool','layersTool']){
+for(const id of ['huntersTool','layersTool','groupTool']){
  $(id).onclick=()=>showTools($(id).getAttribute('aria-expanded')==='true'?null:id);
 }
 new ResizeObserver(()=>map.invalidateSize()).observe($('map'));
@@ -124,7 +136,10 @@ let haveSnapshot=false, shareUntil=0;
 let everConnected=false, gpsWeak=false, lastPoll=0, lastCoarse=0, lastSentOk=0, wakeLock=null, cleaned=new Map(), lastCache='';
 const storage={get(){try{return localStorage.getItem('huntlinkName')||''}catch{return ''}},set(v){try{localStorage.setItem('huntlinkName',v)}catch{}},clear(){try{localStorage.removeItem('huntlinkName')}catch{}}};
 const local={get(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}},clear(k){try{localStorage.removeItem(k)}catch{}}};
-const memberRef=()=>ref(db,'members/'+uid), ownRef=()=>ref(db,'locations/'+uid);
+// mode 'legacy' is the original single group with one shared password; 'group' is a group started in HuntLinq.
+let mode='legacy', group=null, groupInfo=null, roster={}, groupSubs=[];
+const base=()=>mode==='group'&&group?'groups/'+group.g+'/':'';
+const memberRef=()=>ref(db,'members/'+uid), ownRef=()=>ref(db,base()+'locations/'+uid);
 const isDenied=e=>/permission[-_ ]denied/i.test(String(e?.code||'')+' '+String(e?.message||''));
 function ago(ms){
  const s=Math.max(0,Math.floor(ms/1000));
@@ -238,7 +253,7 @@ function render(){
    // Expired records: hide, and let any member tidy them away (allowed by the rules after 6 hours).
    if(connected&&receivedAge(p)*1000>KEEP&&Date.now()>=(cleaned.get(id)||0)){
     cleaned.set(id,Date.now()+60000);
-    remove(ref(db,'locations/'+id)).catch(()=>{});
+    remove(ref(db,base()+'locations/'+id)).catch(()=>{});
    }
    continue;
   }
@@ -266,6 +281,7 @@ function render(){
  for(const [id,retryAt] of cleaned)if(Date.now()>=retryAt&&!Object.hasOwn(locations,id))cleaned.delete(id);
  if(!seen.size)list.append(safeText('No other hunters have shared in the last 6 hours.'));
  whoSees(rows.map(({d})=>d.who));
+ if(mode==='group')renderRoster();
  $('fitAll').hidden=!seen.size;
  updateDetails();
  if(haveSnapshot)cacheLastKnown(rows);
@@ -275,7 +291,11 @@ function render(){
 function whoSees(names){
  const me=sharing?'You are sharing now, so they can see your latest spot.':'You are not sharing, so nobody can see where you are.';
  const others=names.length?' On the map now: '+names.join(', ')+'.':'';
- const text='Everyone who has this group\'s password and opens HuntLinq. '+me+others;
+ let text='Everyone who has this group\'s password and opens HuntLinq. '+me+others;
+ if(mode==='group'&&group){
+  const members=Object.entries(roster).filter(([id])=>id!==uid).map(([,m])=>String(m?.name||'Hunter'));
+  text=(members.length?'The '+(members.length===1?'other member':members.length+' other members')+' of '+group.name+': '+listNames(members)+'. ':'Only you are in '+group.name+' so far. Invite people with the Group button. ')+me;
+ }
  if($('whoSeesText').textContent!==text)$('whoSeesText').textContent=text;
 }
 // Keep a device-only copy of the group's last known spots for the offline topo map. Cleared on Leave group.
@@ -292,7 +312,7 @@ $('fitAll').onclick=()=>{
 };
 function openMap(){
  status('GPS not started. Sharing off.');
- showTools(null); joined=true; $('login').hidden=true; $('app').hidden=false; $('error').textContent=''; connection(); updateSharing();
+ showTools(null); joined=true; for(const s of SCREENS)$(s).hidden=true; $('app').hidden=false; $('error').textContent=''; connection(); updateSharing();
  $('notice').hidden=!!local.get('huntlinkTipSeen');
  requestAnimationFrame(()=>{
   map.invalidateSize();
@@ -300,12 +320,15 @@ function openMap(){
   if(showLand&&!map.hasLayer(publicLand))publicLand.addTo(map);
  });
  if(unsubscribe)unsubscribe();
- unsubscribe=onValue(ref(db,'locations'),s=>{haveSnapshot=true;locations=s.val()||{};render()},()=>{haveSnapshot=true;locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
+ const g=group?.g;
+ unsubscribe=onValue(ref(db,base()+'locations'),s=>{haveSnapshot=true;locations=s.val()||{};render()},e=>{
+  if(mode==='group'){groupLost(g,e);return;}
+  haveSnapshot=true;locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
 }
 $('dismissNotice').onclick=()=>{local.set('huntlinkTipSeen',true);$('notice').hidden=true;};
 const OFFLINE_HINT='No connection. The group map needs signal to check the password. Your offline topo maps and waypoints still work: tap Offline topo maps.';
 // The sharing a hunter had on when HuntLinq closed. It resumes only after they enter the password again.
-function sharingToResume(){const intent=local.get('huntlinkSharing');return !!(uid&&intent&&intent.uid===uid&&Date.now()-intent.at<12*3600000&&!(intent.until&&intent.until<=Date.now()));}
+function sharingToResume(){const intent=local.get('huntlinkSharing');return !!(uid&&intent&&intent.uid===uid&&(intent.g||null)===(group?.g||null)&&Date.now()-intent.at<12*3600000&&!(intent.until&&intent.until<=Date.now()));}
 function loginNote(text){$('loginNote').textContent=text;$('loginNote').hidden=!text;}
 // Tell password managers (iPhone Keychain, Google Password Manager, Samsung Pass) the sign-in worked.
 // Values are read on submit and the form is hidden after a correct password, which managers read as success; Chrome-based browsers also get an explicit offer to save.
@@ -425,7 +448,7 @@ function stopGPS(){
  ownMarker=null;circle=null;updateDetails();
 }
 // Sharing intent survives a reload or the phone discarding the tab, for up to 12 hours.
-function rememberSharing(){if(uid)local.set('huntlinkSharing',{uid,at:Date.now(),until:shareUntil});}
+function rememberSharing(){if(uid)local.set('huntlinkSharing',{uid,g:group?.g||null,at:Date.now(),until:shareUntil});}
 function stopLocally(){
  sharing=false;sharingPaused=false;earliestFix=0;armed=false;epoch++;lastSentOk=0;shareUntil=0;stopGPS();updateSharing();
  local.clear('huntlinkSharing');releaseWake();
@@ -529,7 +552,8 @@ async function finishLeave(){
      confirmed=false;
     }
    }
-   await signOut(auth);
+   // Stay signed in when this phone is also in a HuntLinq group, so that membership is kept.
+   if(!local.get('huntlinkGroup'))await signOut(auth);
   }
   rememberLeave(null);
   $('error').textContent=confirmed?'You have left the group.':'Signed out on this phone. Server cleanup could not be confirmed.';
@@ -540,6 +564,7 @@ async function finishLeave(){
 $('retryLeave').onclick=finishLeave;
 $('logout').onclick=()=>{
  if(!joined||busy)return;
+ if(mode==='group'){void leaveGroup();return;}
  rememberLeave(uid);storage.clear();local.clear('huntlinkLastKnown');lastCache='';
  joined=false;haveSnapshot=false;stopLocally();map.removeLayer(publicLand);
  if(unsubscribe)unsubscribe();
@@ -551,6 +576,245 @@ $('logout').onclick=()=>{
  $('error').textContent='You left on this phone. Server cleanup is pending until connected.';
  void finishLeave();
 };
+// ---- Groups: start a group, invite by link, QR code or 6-character code, and stay remembered on this phone. ----
+const SCREENS=['start','create','code','join','login'];
+const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789', CODE_LIFE=3*86400000-60000;
+const myName={get(){try{return localStorage.getItem('huntlinkMyName')||storage.get()}catch{return ''}},set(v){try{localStorage.setItem('huntlinkMyName',v)}catch{}}};
+function randomId(bytes){const a=crypto.getRandomValues(new Uint8Array(bytes));return btoa(String.fromCharCode(...a)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function randomCode(){let out='';while(out.length<6){const b=crypto.getRandomValues(new Uint8Array(1))[0];if(b<248)out+=CODE_CHARS[b%31];}return out;}
+const prettyCode=c=>c?c.slice(0,3)+'-'+c.slice(3):'';
+const cleanCode=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const inviteLink=k=>location.origin+location.pathname+'#join='+k;
+const serverNow=()=>Date.now()+offset;
+function listNames(names){const shown=names.slice(0,6);return shown.join(', ')+(names.length>shown.length?' and '+(names.length-shown.length)+' more':'');}
+function withTimeout(promise,ms=15000){let t;return Promise.race([promise,new Promise((_,no)=>{t=setTimeout(()=>no(Object.assign(Error('No response. Check your signal and try again.'),{code:'timeout'})),ms);})]).finally(()=>clearTimeout(t));}
+function groupError(id,e,denied){
+ const msg=String(e?.code||'')+' '+String(e?.message||'');
+ $(id).textContent=isDenied(e)?denied:(!navigator.onLine||/network|offline|unavailable|timeout/i.test(msg))?'No connection. Starting or joining a group needs signal. Offline topo maps still work.':(e?.message||denied);
+}
+async function signedIn(){if(!auth.currentUser)await withTimeout(signInAnonymously(auth));uid=auth.currentUser.uid;return uid;}
+function clearJoinHash(){if(location.hash)try{history.replaceState(history.state,'',location.pathname+location.search);}catch{}}
+function showScreen(id,note=''){
+ for(const s of SCREENS)$(s).hidden=s!==id;
+ $('app').hidden=true;
+ if(id==='start'){$('startNote').textContent=note;$('startNote').hidden=!note;}
+}
+$('startGroup').onclick=()=>{$('createName').value=myName.get();$('createError').textContent='';showScreen('create');$('groupNameInput').focus();};
+$('joinWithCode').onclick=()=>{$('codeError').textContent='';showScreen('code');$('codeInput').focus();};
+$('useLegacy').onclick=()=>{showScreen('login');$('error').textContent='';($('name').value?$('password'):$('name')).focus();};
+for(const b of document.querySelectorAll('.back'))b.onclick=()=>{clearJoinHash();joinInvite=null;showScreen('start');};
+
+$('createForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(busy)return;
+ const groupName=$('groupNameInput').value.trim(), me=$('createName').value.trim();
+ if(!groupName||groupName.length>40){$('createError').textContent='Give your group a name.';return;}
+ if(!me||me.length>50){$('createError').textContent='Enter your name.';return;}
+ busy=true;$('createGo').disabled=true;$('createError').textContent='Starting your group…';
+ try{
+  await signedIn();
+  if(!connected)throw Object.assign(Error(),{code:'unavailable'});
+  const g=randomId(12), key=randomId(18);
+  for(let attempt=0;;attempt++){
+   // A new random code; if it happens to be in use by another group the write is refused, so try another.
+   const code=randomCode(), exp=serverNow()+CODE_LIFE;
+   try{
+    await withTimeout(update(ref(db),{
+     ['groups/'+g+'/info']:{name:groupName,leader:uid,createdAt:serverTimestamp(),invite:key,code,codeExp:exp},
+     ['groups/'+g+'/members/'+uid]:{name:me,role:'leader',joinedAt:serverTimestamp()},
+     ['invites/'+key]:{g,name:groupName,by:me,people:{[uid]:me}},
+     ['codes/'+code]:{k:key,exp}}));
+    break;
+   }catch(err){if(!isDenied(err)||attempt>=2)throw err;}
+  }
+  myName.set(me);$('groupNameInput').value='';
+  enterGroup({g,name:groupName,me},true);
+ }catch(err){groupError('createError',err,"Couldn't start the group. Try again.");}
+ finally{busy=false;$('createGo').disabled=false;updateSharing();}
+});
+
+let joinInvite=null;
+async function showJoin(key){
+ showScreen('join');joinInvite=null;$('joinGo').disabled=true;$('joinTitle').textContent='Checking your invite…';$('joinWho').textContent='';$('joinError').textContent='';
+ if(!$('joinName').value)$('joinName').value=myName.get();
+ try{
+  await signedIn();
+  const inv=(await withTimeout(get(ref(db,'invites/'+key)))).val();
+  if(!inv||!inv.g){$('joinTitle').textContent='This invite no longer works';$('joinError').textContent='Ask the group leader for a new link or code.';return;}
+  // Already in this group on this phone: go straight to the map.
+  try{const mine=await withTimeout(get(ref(db,'groups/'+inv.g+'/members/'+uid)));if(mine.exists()){clearJoinHash();enterGroup({g:inv.g,name:inv.name,me:String(mine.val().name||myName.get())});return;}}
+  catch(e){if(!isDenied(e))throw e;}
+  joinInvite={key,...inv};
+  $('joinTitle').textContent="You're invited to "+inv.name;
+  // The person who started the group first, then everyone else by name.
+  const people=Object.values(inv.people||{}).filter(Boolean).map(String).sort((a,b)=>(b===inv.by)-(a===inv.by)||a.localeCompare(b));
+  $('joinWho').textContent='Started by '+inv.by+' · '+people.length+(people.length===1?' member':' members')+(people.length?': '+listNames(people):'');
+  $('joinGo').disabled=false;$('joinName').focus();
+ }catch(e){$('joinTitle').textContent="Couldn't open this invite";groupError('joinError',e,'This invite no longer works. Ask the group leader for a new link or code.');}
+}
+$('joinForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(busy||!joinInvite)return;
+ const me=$('joinName').value.trim();if(!me||me.length>50){$('joinError').textContent='Enter your name.';return;}
+ const inv=joinInvite;
+ busy=true;$('joinGo').disabled=true;$('joinError').textContent='Joining '+inv.name+'…';
+ try{
+  await signedIn();
+  await withTimeout(update(ref(db),{['groups/'+inv.g+'/members/'+uid]:{name:me,role:'member',joinedAt:serverTimestamp(),key:inv.key},['invites/'+inv.key+'/people/'+uid]:me}));
+  myName.set(me);clearJoinHash();joinInvite=null;
+  enterGroup({g:inv.g,name:inv.name,me});
+ }catch(err){groupError('joinError',err,'This invite no longer works. Ask the group leader for a new link or code.');}
+ finally{busy=false;$('joinGo').disabled=!joinInvite;updateSharing();}
+});
+$('codeForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(busy)return;
+ const code=cleanCode($('codeInput').value);
+ if(!/^[A-Z0-9]{6}$/.test(code)){$('codeError').textContent='Codes have 6 letters and numbers, like K7P-4QX.';return;}
+ busy=true;$('codeGo').disabled=true;$('codeError').textContent='Checking the code…';
+ let key=null;
+ try{
+  await signedIn();
+  key=(await withTimeout(get(ref(db,'codes/'+code)))).val()?.k;
+  if(!key)throw Object.assign(Error(),{code:'PERMISSION_DENIED'});
+ }catch(err){groupError('codeError',err,"That code didn't work. Check it, or ask for a new one. Codes last 3 days.");}
+ finally{busy=false;$('codeGo').disabled=false;}
+ if(key){$('codeInput').value='';await showJoin(key);}
+});
+
+function enterGroup(saved,showInvite=false){
+ mode='group';group={g:saved.g,name:saved.name,me:saved.me};local.set('huntlinkGroup',group);
+ name=group.me||myName.get();
+ $('groupLabel').textContent=group.name;$('groupLabel').hidden=false;$('groupTool').hidden=false;
+ groupInfo=null;roster={};rosterKey='';
+ openMap();
+ subscribeGroup();
+ if(showInvite)showTools('groupTool');
+ if(local.get('huntlinkPendingStop')===uid)void stopSharing();
+ else if(sharingToResume())startSharing(true);
+ else local.clear('huntlinkSharing');
+}
+function unsubscribeGroup(){for(const u of groupSubs)u();groupSubs=[];}
+function subscribeGroup(){
+ unsubscribeGroup();
+ const g=group.g;
+ groupSubs.push(onValue(ref(db,'groups/'+g+'/info'),s=>{
+  if(group?.g!==g)return;
+  groupInfo=s.val();
+  if(groupInfo?.name&&groupInfo.name!==group.name){group.name=groupInfo.name;local.set('huntlinkGroup',group);$('groupLabel').textContent=group.name;}
+  renderInvite();
+ },e=>groupLost(g,e)));
+ groupSubs.push(onValue(ref(db,'groups/'+g+'/members'),s=>{
+  if(group?.g!==g)return;
+  roster=s.val()||{};
+  if(uid&&!roster[uid]){groupLost(g);return;}
+  renderRoster();render();
+ },e=>groupLost(g,e)));
+}
+// Removed from the group, or this phone lost its sign-in: say so plainly and go back to Start.
+function groupLost(g,e){
+ if(mode!=='group'||group?.g!==g)return;
+ if(e&&!isDenied(e))return;
+ const groupName=group.name;
+ closeGroup();local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
+ showScreen('start',"You're no longer in "+groupName+'. Ask the group leader for a new invite link.');
+}
+function closeGroup(){
+ joined=false;haveSnapshot=false;stopLocally();map.removeLayer(publicLand);
+ if(unsubscribe)unsubscribe();unsubscribe=null;unsubscribeGroup();
+ locations={};roster={};groupInfo=null;rosterKey='';qrFor='';lastCache='';
+ for(const marker of markers.values())marker.remove();
+ markers.clear();$('friends').replaceChildren();$('memberList').replaceChildren();$('qr').replaceChildren();
+ mode='legacy';group=null;$('groupLabel').hidden=true;$('groupTool').hidden=true;
+}
+async function leaveGroup(){
+ if(!group)return;
+ if(!confirm('Leave '+group.name+'? Your spot is removed, and you will need a new invite to come back.'))return;
+ const pending={g:group.g,uid,key:groupInfo?.invite||null}, groupName=group.name;
+ local.set('huntlinkPendingGroupLeave',pending);
+ closeGroup();local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
+ showScreen('start','You left '+groupName+'.');
+ await finishGroupLeave();
+}
+// Remove this phone's spot and name from a group it left. Retried when signal returns.
+let leavingGroup=false;
+async function finishGroupLeave(){
+ const p=local.get('huntlinkPendingGroupLeave');
+ if(!p||!connected||leavingGroup)return;
+ if(auth.currentUser?.uid!==p.uid){local.clear('huntlinkPendingGroupLeave');return;}
+ leavingGroup=true;
+ const paths={['groups/'+p.g+'/locations/'+p.uid]:null,['groups/'+p.g+'/members/'+p.uid]:null};
+ if(p.key)paths['invites/'+p.key+'/people/'+p.uid]=null;
+ try{await withTimeout(update(ref(db),paths));local.clear('huntlinkPendingGroupLeave');}
+ catch(e){if(isDenied(e))local.clear('huntlinkPendingGroupLeave');}
+ finally{leavingGroup=false;}
+}
+
+let qrFor='';
+function drawQR(text){
+ if(qrFor===text)return;qrFor=text;
+ const box=$('qr');box.replaceChildren();
+ if(typeof qrcode!=='function')return;
+ const qr=qrcode(0,'M');qr.addData(text);qr.make();
+ const n=qr.getModuleCount(),m=3,ns='http://www.w3.org/2000/svg';
+ const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 '+(n+m*2)+' '+(n+m*2));svg.setAttribute('shape-rendering','crispEdges');svg.setAttribute('aria-hidden','true');
+ let d='';for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))d+='M'+(c+m)+' '+(r+m)+'h1v1h-1z';
+ const path=document.createElementNS(ns,'path');path.setAttribute('d',d);path.setAttribute('fill','#000');svg.append(path);box.append(svg);
+}
+const isLeader=()=>mode==='group'&&roster[uid]?.role==='leader';
+function renderInvite(){
+ const info=groupInfo;if(mode!=='group'||!info||!info.invite)return;
+ const link=inviteLink(info.invite);
+ $('inviteHeading').textContent='Invite to '+info.name;
+ if($('inviteLink').value!==link)$('inviteLink').value=link;
+ drawQR(link);
+ const live=Number(info.codeExp)>serverNow()&&!!info.code;
+ $('inviteCode').textContent=live?prettyCode(info.code):'';
+ $('copyCode').hidden=!live;$('newCode').hidden=!isLeader();
+ const until=new Date(Number(info.codeExp)-offset).toLocaleString([],{weekday:'short',hour:'numeric',minute:'2-digit'});
+ $('inviteHint').textContent=(live?'Scan the QR code, open the link, or enter the code. The code works until '+until+'. ':'The 3-day code has expired. '+(isLeader()?'Tap New code for another. ':'Ask a group leader for a new one. '))+'Anyone with the link can join '+info.name+'.';
+}
+let rosterKey='';
+function renderRoster(){
+ if(mode!=='group')return;
+ const rows=Object.entries(roster).filter(([,m])=>m).sort(([,a],[,b])=>(b.role==='leader')-(a.role==='leader')||String(a.name).localeCompare(String(b.name)));
+ const state=id=>{if(id===uid)return sharing?'Sharing':'Not sharing';const p=locations[id];if(!p||!Number.isFinite(p.updatedAt)||fixAge(p)*1000>KEEP)return 'Not sharing';return connected&&receivedAge(p)*1000<=ACTIVE?'Sharing':'Last spot';};
+ const key=JSON.stringify([uid,rows.map(([id,m])=>[id,m.name,m.role,state(id)])]);
+ if(key===rosterKey)return;rosterKey=key;
+ const list=$('memberList');list.replaceChildren();
+ for(const [id,m] of rows){
+  const li=document.createElement('li');li.dataset.id=id;
+  const who=document.createElement('span');who.className='who';who.textContent=String(m.name||'Hunter')+(id===uid?' (you)':'');li.append(who);
+  if(m.role==='leader'){const t=document.createElement('span');t.className='tag';t.textContent='Leader';li.append(t);}
+  const st=document.createElement('span');st.className='tag';st.textContent=state(id);li.append(st);
+  list.append(li);
+ }
+ renderInvite();
+}
+$('shareInvite').onclick=async()=>{
+ if(!groupInfo?.invite)return;
+ const link=inviteLink(groupInfo.invite);
+ if(navigator.share){
+  try{await navigator.share({title:'HuntLinq: '+groupInfo.name,text:'Join "'+groupInfo.name+'" on HuntLinq so we can see each other on the map.',url:link});$('inviteStatus').textContent='';return;}
+  catch(e){if(e?.name==='AbortError')return;}
+ }
+ await copyText(link,'Invite link copied. Paste it into a text to your group.');
+};
+async function copyText(text,done){
+ try{await navigator.clipboard.writeText(text);$('inviteStatus').textContent=done;}
+ catch{$('inviteLink').focus();$('inviteLink').select();$('inviteStatus').textContent='Copy the link above.';}
+}
+$('copyCode').onclick=()=>{if(groupInfo?.code)void copyText(prettyCode(groupInfo.code),'Code '+prettyCode(groupInfo.code)+' copied.');};
+$('newCode').onclick=async()=>{
+ if(!groupInfo||!isLeader())return;
+ $('newCode').disabled=true;$('inviteStatus').textContent='Making a new code…';
+ try{
+  for(let attempt=0;;attempt++){
+   const code=randomCode(), exp=serverNow()+CODE_LIFE, paths={['codes/'+code]:{k:groupInfo.invite,exp},['groups/'+group.g+'/info/code']:code,['groups/'+group.g+'/info/codeExp']:exp};
+   if(groupInfo.code&&groupInfo.code!==code)paths['codes/'+groupInfo.code]=null;
+   try{await withTimeout(update(ref(db),paths));$('inviteStatus').textContent='New code '+prettyCode(code)+' is ready. The old code no longer works.';break;}
+   catch(e){if(!isDenied(e)||attempt>=2)throw e;}
+  }
+ }catch(e){$('inviteStatus').textContent=isDenied(e)?'Only group leaders can make a new code.':"Couldn't make a new code. Check your signal.";}
+ finally{$('newCode').disabled=false;}
+};
 onValue(ref(db,'.info/serverTimeOffset'),s=>{offset=s.val()||0;});
 onValue(ref(db,'.info/connected'),s=>{
  connected=s.val()===true;connection();if(pendingLeave)showPendingLeave();
@@ -559,6 +823,7 @@ onValue(ref(db,'.info/connected'),s=>{
  else if(sharing){lastSent=0;if(!sharingPaused)status(fix?'Back online · sending your location.':'Back online · waiting for a GPS fix to send.');void arm();}
  else if(joined&&!fix&&everConnected)status('Back online. GPS not started. Sharing off.');
  if(connected)everConnected=true;
+ if(connected)void finishGroupLeave();
  render();
 });
 setInterval(()=>{checkShareTimer();render();pollGPS();void publishFix();if(sharing&&!sharingPaused&&connected&&fix&&Date.now()-fix.time>LIVE&&!writing)status('Sharing · GPS update stale, last fix '+ago(Date.now()-fix.time)+' ago. Searching…');},5000);
@@ -566,18 +831,30 @@ try{
  await auth.authStateReady();
  uid=auth.currentUser?.uid||null; name=storage.get();$('name').value=name;
  try{pendingLeave=localStorage.getItem('huntlinkPendingLeave');}catch{}
- if(pendingLeave){storage.clear();name='';$('name').value='';$('error').textContent='You left on this phone. Server cleanup is pending until connected.';await finishLeave();}
+ const joinKey=(location.hash.match(/^#join=([A-Za-z0-9_-]{22,43})$/)||[])[1];
+ const saved=local.get('huntlinkGroup');
+ if(pendingLeave){showScreen('login');storage.clear();name='';$('name').value='';$('error').textContent='You left on this phone. Server cleanup is pending until connected.';await finishLeave();}
+ else if(joinKey){void showJoin(joinKey);}
+ else if(saved?.g&&uid){
+  // Remembered phone: open the group map straight away. Membership is checked by the database rules.
+  enterGroup(saved);
+ }
  else if(uid&&name){
-  // Returning hunter: always show the login with the name filled in and ask for the group password again.
+  // Original password group, returning hunter: always show the login with the name filled in and ask for the group password again.
   // Also drop this phone's group membership so the server needs the password again too.
   // Deleting your own membership or location is always allowed by database.rules.json, even offline (it is sent when signal returns).
+  showScreen('login');
   remove(memberRef()).catch(()=>{});
   if(local.get('huntlinkPendingStop')===uid)remove(ownRef()).then(()=>local.clear('huntlinkPendingStop')).catch(()=>{});
   if(!sharingToResume())local.clear('huntlinkSharing');
   loginNote(sharingToResume()?'Welcome back. You were sharing when HuntLinq closed. Sharing is paused until you enter the group password.':'Welcome back. Enter the group password to open the group map.');
   $('error').textContent='';$('password').focus();
- }else $('error').textContent='';
-}catch(e){$('error').textContent='Connection error: '+e.message;}
+ }else{
+  if(saved)local.clear('huntlinkGroup');
+  showScreen('start');$('error').textContent='';
+ }
+ void finishGroupLeave();
+}catch(e){$('error').textContent='Connection error: '+e.message;if($('login').hidden&&!joined)showScreen('start','Connection error: '+e.message);}
 showPendingLeave();
 // No signal at launch: point hunters at their offline maps instead of leaving them at a password they can't use yet.
 setTimeout(()=>{if(!joined&&!connected&&!pendingLeave&&!busy&&!$('error').textContent)$('error').textContent=OFFLINE_HINT;},6000);

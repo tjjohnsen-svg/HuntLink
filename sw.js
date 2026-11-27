@@ -1,9 +1,9 @@
-// Cached files hash: 4de847a78e123d53. Run python3 _qa/sw_version.py --update after changing a cached file.
+// Cached files hash: e09e3355ad0e20c8. Run python3 _qa/sw_version.py --update after changing a cached file.
 const scope = self.registration.scope;
-const shell = 'huntlink-offline-topo-v10:' + scope;
+const shell = 'huntlink-offline-topo-v12:' + scope;
 const viewer = new URL('offline.html', scope).href;
 const files = ['offline.html', 'privacy.html', 'map-nav.css', 'offline.js', 'waypoints.js', 'public-land.js', 'offline-states.json', 'vendor/leaflet/leaflet.css',
-  'vendor/leaflet/leaflet.js',
+  'vendor/leaflet/leaflet.js', 'vendor/qrcode/qrcode.js',
   ...['layers.png','layers-2x.png','marker-icon.png','marker-icon-2x.png','marker-shadow.png'].map(name=>'vendor/leaflet/images/'+name),
   'vendor/firebase/firebase-app.js', 'vendor/firebase/firebase-auth.js', 'vendor/firebase/firebase-database.js', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'manifest.webmanifest'];
 const urls = new Set(files.map(file => new URL(file, scope).href));

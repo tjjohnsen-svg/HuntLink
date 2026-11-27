@@ -8,13 +8,14 @@ Run the commands from the repository root. The browser runner creates a fresh te
 | Same flows in mobile-sized WebKit | `/usr/bin/python3 _qa/run.py webkit` | Linux graphical session, PyGObject, GTK 3 and WebKit2GTK 4.1 |
 | Service worker cache version and public-land helpers (also run first by `run.py`) | `python3 _qa/sw_version.py` and `node _qa/public-land-unit.mjs` | Python 3 and Node.js 22+ |
 | Firebase permissions | `python3 _qa/rules.py /path/to/firebase-database-emulator.jar` | Java and the Firebase Realtime Database emulator JAR |
+| HuntLinq groups with several phones against the Firebase emulators (about 1 minute): start a group, invite link, QR and code, join preview, remembered phones, group isolation, new code, leaving, and the original password group alongside | Start the emulators as below, then `HUNTLINQ_SHOTS=/some/folder node _qa/groups-e2e.mjs` | Same as the next row |
 | Multi-user group map against the Firebase emulators (about 5 minutes) | `npx firebase-tools emulators:start --only auth,database --project demo-huntlink`, then in another shell `node _qa/emulator-e2e.mjs` | Java, Node.js 22+, Google Chrome and `npm i playwright` |
 
 Use `/usr/bin/python3 _qa/run.py` to run both browsers. On an X11 system with graphics issues, prefix the WebKit command with `env GDK_BACKEND=x11 WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 
 The group tests cover the privacy page link, the Who can see you note in the Hunters list, the optional auto-stop sharing timer (it ends sharing on time and never resumes after it ends), sign-in (including the name helper text and that the group password is never stored on the phone), voluntary sharing, GPS freshness, peer distance and direction, pause and resume, and leaving the group. The offline tests cover area selection, cached topo and public-land boundaries, private GPS, and waypoints. Chromium also exercises interrupted downloads and verifies that the previous map survives.
 
-The rules test starts a local emulator with generated credentials. It exercises the current rules and legacy timestamp compatibility. Browser simulations do not verify physical-phone GPS reception or a live deployment.
+The rules test starts a local emulator with generated credentials. It exercises the current rules and legacy timestamp compatibility, then the per-group rules: a group can only be created by its own leader in one step, invite links and codes can be looked up but never listed, the right key is needed to join, members of one group can never read or write another group, only leaders make new codes, and leaving removes your name and spot. Browser simulations do not verify physical-phone GPS reception or a live deployment.
 
 The group tests also cover the stationary heartbeat, weak-GPS handling during timeouts, the single status bar, hunter colors, initials and distances, in-place list updates, last-known spots kept for 6 hours, the on-device cache for the offline map, and the kept-awake screen. The offline tests also cover several saved areas, tile retries, resuming an interrupted download, the group's cached spots on the offline map, and opening a pack saved by the earlier single-area version.
 

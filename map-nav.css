@@ -48,3 +48,12 @@
 #layerOptions .leaflet-control-layers { float: none; margin: 0; box-shadow: none; }
 #layerOptions label { padding: 4px; }
 #waypoints:not([open]), #waypoints > summary { display: none; }
+/* Short phones (such as an iPhone SE): give the map more of the screen. The panel scrolls. */
+@media (max-height: 740px) {
+  #app > header, .offline-map > header { padding-top: 6px; padding-bottom: 6px; }
+  #app > header h1, .offline-map > header h1 { font-size: 19px; }
+  #app > #panel, .offline-map > section { max-height: 30dvh; padding-top: 6px; gap: 6px; }
+  .map-tools :is(button, a) { min-height: 48px; gap: 2px; }
+  #app #status { font-size: 15px; }
+  .leaflet-control-attribution { font-size: 10px; }
+}

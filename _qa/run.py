@@ -27,7 +27,7 @@ def parcels(count, lat, lng):
 
 def prepare(work):
     for name in ('offline.html', 'map-nav.css', 'offline.js', 'public-land.js', 'waypoints.js', 'sw.js',
-                 'offline-states.json', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'):
+                 'offline-states.json', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'):
         shutil.copy(ROOT/name, work/name)
     shutil.copytree(ROOT/'vendor', work/'vendor')
     # Generate a solid 256px tile without a graphics dependency.
@@ -62,6 +62,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='huntlink-qa-') as directory:
         work = Path(directory)
         prepare(work)
+        subprocess.run([os.sys.executable, QA/'sw_version.py'], check=True, timeout=30)
+        subprocess.run(['node', QA/'public-land-unit.mjs'], check=True, timeout=30)
         if args.engine in ('chrome', 'both'):
             command = ['google-chrome','--headless','--disable-background-networking','--disable-gpu',
                        f'--user-data-dir={work}/chrome-group','--window-size=412,915',

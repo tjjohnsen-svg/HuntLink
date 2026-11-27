@@ -6,24 +6,82 @@ const service = 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/servic
 const filter = "State_Nm IN ('ID','WA') AND Own_Type IN ('FED','STAT','LOC','DIST')"
   + " AND (Own_Type IN ('FED','STAT') OR (GIS_Acres >= 40 AND Mang_Name NOT IN ('PVT','REG','UNKL')))"
   + " AND (Loc_Nm IS NULL OR UPPER(Loc_Nm) NOT LIKE '%SCHOOL%')";
-const fields = 'Loc_Nm,Unit_Nm,Loc_Mang,Mang_Name,WebServiceMangName';
+const fields = 'Loc_Nm,Unit_Nm,Loc_Mang,Mang_Name,WebServiceMangName,Pub_Access,Own_Type,Src_Date';
+
+// PAD-US public access codes. Closed and restricted land is drawn differently so it doesn't look
+// like open public land.
+const ACCESS = {
+  OA: 'Open to the public',
+  RA: 'Restricted access (permits, seasons or closed areas may apply)',
+  XA: 'Closed to the public',
+  UK: 'Public access unknown'
+};
+const OWNER = {FED: 'Federal', STAT: 'State', LOC: 'Local government', DIST: 'Special district'};
+const MANAGER = {
+  BLM: 'Bureau of Land Management', USFS: 'U.S. Forest Service', FWS: 'U.S. Fish and Wildlife Service',
+  NPS: 'National Park Service', USBR: 'Bureau of Reclamation', USACE: 'U.S. Army Corps of Engineers',
+  DOD: 'Department of Defense', DOE: 'Department of Energy', ARS: 'Agricultural Research Service',
+  BIA: 'Bureau of Indian Affairs', OTHF: 'Other federal agency', SDOL: 'State Department of Lands',
+  SFW: 'State Fish and Wildlife', SPR: 'State Parks', SDNR: 'State Department of Natural Resources',
+  SDC: 'State Department of Conservation', OTHS: 'Other state agency', CITY: 'City', CNTY: 'County',
+  REG: 'Regional agency', UNKL: 'Unknown local agency', JNT: 'Joint management', NGO: 'Nonprofit',
+  PVT: 'Private', TRIB: 'Tribal', UNK: 'Unknown'
+};
+export function accessOf(p) { return ACCESS[p?.Pub_Access] ? p.Pub_Access : 'UK'; }
+function tidy(text) {
+  const value = String(text ?? '').replace(/\s+/g, ' ').trim();
+  // Turn ALL-CAPS names like "BOISE INDEPENDENT SCHOOL DISTRICT" into readable title case.
+  return value && value === value.toUpperCase() && /[A-Z]{3}/.test(value)
+    ? value.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()) : value;
+}
+export function parcelStyle(feature) {
+  switch (accessOf(feature?.properties)) {
+    case 'OA': return {color: '#275e41', fillColor: '#76ce88', fillOpacity: 0.32, weight: 2, dashArray: null};
+    case 'RA': return {color: '#b35c00', fillColor: '#ffb74d', fillOpacity: 0.2, weight: 3, dashArray: '8 5'};
+    // Closed: outline only (a faint fill keeps it tappable).
+    case 'XA': return {color: '#c62828', fillColor: '#c62828', fillOpacity: 0.06, weight: 3, dashArray: '2 6'};
+    default: return {color: '#5f6b66', fillColor: '#b0bec5', fillOpacity: 0.15, weight: 2, dashArray: '6 4'};
+  }
+}
+export function parcelPopup(p = {}) {
+  const content = document.createElement('div');
+  content.className = 'parcel-info';
+  const line = (text, tag = 'div') => { const e = document.createElement(tag); e.textContent = text; content.append(e); return e; };
+  line(tidy(p.Loc_Nm || p.Unit_Nm) || 'Public land', 'strong');
+  const access = accessOf(p);
+  line(ACCESS[access]).className = 'parcel-access access-' + access;
+  if (OWNER[p.Own_Type]) line('Owner: ' + OWNER[p.Own_Type]);
+  const code = p.Mang_Name || p.WebServiceMangName;
+  const agency = MANAGER[code] || tidy(code);
+  const local = tidy(p.Loc_Mang);
+  const detail = local && !/^unknown$/i.test(local) && local !== code && local.toLowerCase() !== agency?.toLowerCase() ? local : '';
+  line('Manager: ' + ([agency, detail].filter(Boolean).join(' · ') || 'Unlisted'));
+  const year = /^(\d{4})/.exec(String(p.Src_Date ?? ''))?.[1];
+  line('Source: USGS PAD-US 4.1' + (year ? ', boundary data from ' + year : '') + '.');
+  line('Boundaries are approximate. Verify access and hunting rules locally.');
+  return content;
+}
+
+let styled = false;
+function addPopupStyle() {
+  if (styled) return;
+  styled = true;
+  const style = document.createElement('style');
+  style.textContent = '.parcel-info{font:15px/1.4 system-ui,sans-serif;color:#192b23}.parcel-info strong{display:block;font-size:16px;margin-bottom:2px}'
+    + '.parcel-access{font-weight:700}.access-XA{color:#b71c1c}.access-RA{color:#8a4500}.access-UK{color:#455a64}.access-OA{color:#1b5e20}';
+  document.head.append(style);
+}
 
 export function createParcelLayer(map, L) {
+  addPopupStyle();
   const pane = map.createPane('publicLand');
   pane.style.zIndex = 390; // Below hunter markers and GPS accuracy circles.
   return L.geoJSON(null, {
     pane: 'publicLand',
     attribution: '<a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-web-services">USGS PAD-US</a>',
-    style: {color: '#275e41', fillColor: '#76ce88', fillOpacity: 0.32, weight: 2},
+    style: parcelStyle,
     onEachFeature(feature, layer) {
-      const p = feature.properties;
-      const content = document.createElement('div');
-      const name = document.createElement('strong');
-      name.textContent = p.Loc_Nm || p.Unit_Nm || 'Public land';
-      const manager = document.createElement('div');
-      manager.textContent = 'Manager: ' + (p.Loc_Mang || p.WebServiceMangName || p.Mang_Name || 'Unlisted');
-      content.append(name, manager, document.createTextNode('Source: USGS PAD-US. Verify hunting access locally.'));
-      layer.bindPopup(content);
+      layer.bindPopup(() => parcelPopup(feature.properties), {maxWidth: 280});
     }
   });
 }

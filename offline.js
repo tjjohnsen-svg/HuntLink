@@ -206,7 +206,9 @@ function showSaved() {
   $('landLabel').textContent='Show saved public land';
   if (area.publicLand?.length) {
     parcels.addData({type:'FeatureCollection',features:area.publicLand}).addTo(map);
-    $('landNote').textContent='USGS public land · Tap a shaded parcel for details. Verify hunting access locally.';
+    $('landNote').textContent=area.publicLand.some(f=>!f.properties?.Pub_Access)
+      ? 'USGS public land, saved before access details were added. Download this area again to see which land is open, restricted or closed.'
+      : 'USGS public land · Tap a shaded parcel for details. Verify hunting access locally.';
   } else {
     $('landNote').textContent=area.publicLand ? 'USGS returned no mapped public parcels in this area.'
       : 'Topo only. Download this area again with public-land boundaries to see them offline.';

@@ -22,7 +22,7 @@
 </head>
 <body>
 <section id="login"><form id="loginForm"><h1>🌲 HuntLink</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><button class="primary" id="enter" type="submit" disabled>Enter HuntLink</button><p>Sharing is off until you turn it on.  Everyone with the group password can see your shared location.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><div id="error" role="status">Connecting...</div></form></section>
-<section id="app" hidden><header><div><h1>🌲 HuntLink</h1><div id="connection">Connecting...</div></div><a class="offlineLink" href="./offline.html">Offline topo</a><button id="logout">Leave group</button></header><div id="map"></div><div id="panel"><div id="status" role="status">GPS not started. Sharing off.</div><div class="buttons"><button id="locate">◎ My location</button><button id="share" class="primary">Start sharing</button></div><div id="friends"></div><div id="hunterDetails" hidden><span id="hunterReading" role="status"></span><button id="closeDetails" aria-label="Close hunter details">Close</button></div><div id="landNotice" role="status" hidden></div><div id="notice">Keep this page open. GPS sharing needs internet and is not a safety or emergency service.</div></div></section>
+<section id="app" hidden><header><div><h1>🌲 HuntLink</h1><div id="connection">Connecting...</div></div><a class="offlineLink" href="./offline.html">Offline topo</a><button id="logout">Leave group</button></header><div id="map"></div><div id="panel"><div id="status" role="status">GPS not started. Sharing off.</div><div class="buttons"><button id="locate">◎ My location</button><button id="share" class="primary">Start sharing</button></div><div id="friends"></div><div id="hunterDetails" hidden><span id="hunterReading" role="status"></span><button id="closeDetails" aria-label="Close hunter details">Close</button></div><div id="landNotice" role="status" hidden></div><div id="notice">Keep HuntLink visible to share. Locking the phone or switching apps pauses updates. An active session resumes when you return. Sharing needs internet and is not an emergency service.</div></div></section>
 <script type="module">
 import { addPublicLand } from "./public-land.js";
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
@@ -48,6 +48,7 @@ L.control.scale({metric:false,imperial:true}).addTo(map);
 let uid=null, name='', joined=false, connected=false, offset=0, unsubscribe=null;
 let ownMarker=null, circle=null, watch=null, fix=null, sharing=false, armed=false, writing=false, lastSent=0, epoch=0;
 let locations={}, markers=new Map(), busy=false;
+let sharingPaused=false, earliestFix=0;
 let lastFixSent=null, watchGeneration=0, pendingLeave=null, finishingLeave=false;
 const storage={get(){try{return localStorage.getItem('huntlinkName')||''}catch{return ''}},set(v){try{localStorage.setItem('huntlinkName',v)}catch{}},clear(){try{localStorage.removeItem('huntlinkName')}catch{}}};
 const memberRef=()=>ref(db,'members/'+uid), ownRef=()=>ref(db,'locations/'+uid);
@@ -151,7 +152,7 @@ function startGPS(highAccuracy=true){
  watch=navigator.geolocation.watchPosition(p=>{
   if(!joined||generation!==watchGeneration)return;
   const {latitude:lat,longitude:lng,accuracy}=p.coords;
-  if(!Number.isFinite(p.timestamp)||p.timestamp>Date.now()||(fix&&p.timestamp<fix.time))return;
+  if(!Number.isFinite(p.timestamp)||p.timestamp<earliestFix||p.timestamp>Date.now()||(fix&&p.timestamp<fix.time))return;
   fix={lat,lng,accuracy,time:p.timestamp,measuredAt:Math.round(p.timestamp+offset)};
   if(!ownMarker){circle=L.circle([lat,lng],{radius:accuracy,color:'#1683ff',weight:1,fillOpacity:.12}).addTo(map);ownMarker=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:3,fillColor:'#1683ff',fillOpacity:1}).addTo(map).bindTooltip('You',{permanent:true,direction:'top',className:'hunter-label'});if(selectedHunter===null)map.setView([lat,lng],16);}
   else{ownMarker.setLatLng([lat,lng]);circle.setLatLng([lat,lng]).setRadius(accuracy);}
@@ -174,18 +175,18 @@ function startGPS(highAccuracy=true){
   const message='No location fix. Check device Location Services, then tap My location to retry.';
   if(sharing)void stopSharing(message);
   else{stopGPS();status(message);}
- },{enableHighAccuracy:highAccuracy,maximumAge:5000,timeout:20000});
+ },{enableHighAccuracy:highAccuracy,maximumAge:earliestFix?0:5000,timeout:20000});
  return true;
 }
 $('locate').onclick=()=>{detailOnlyGPS=false;if(ownMarker)map.setView(ownMarker.getLatLng(),16);startGPS();};
 async function arm(){
- if(!joined||!sharing||!connected)return;
+ if(!joined||!sharing||sharingPaused||!connected)return;
  const generation=epoch;
  try{await onDisconnect(ownRef()).remove();if(epoch!==generation||!sharing||!connected)return;armed=true;void publishFix();}
  catch(e){if(epoch===generation){armed=false;status('Could not enable disconnect protection. Location not sent.');}}
 }
 async function publishFix(){
- if(!joined||!sharing||!connected||!armed||writing||!fix||Date.now()-fix.time>30000||Date.now()-lastSent<10000)return;
+ if(!joined||!sharing||sharingPaused||!connected||!armed||writing||!fix||Date.now()-fix.time>30000||Date.now()-lastSent<10000)return;
  if(fix.time===lastFixSent)return;
  const sample=fix, generation=epoch, gpsGeneration=watchGeneration;
  writing=true;lastSent=Date.now();
@@ -208,7 +209,7 @@ function stopGPS(){
  ownMarker=null;circle=null;updateDetails();
 }
 function stopLocally(){
- sharing=false;armed=false;epoch++;stopGPS();updateSharing();
+ sharing=false;sharingPaused=false;earliestFix=0;armed=false;epoch++;stopGPS();updateSharing();
 }
 async function stopSharing(guidance=''){
  stopLocally();
@@ -228,6 +229,26 @@ $('share').onclick=()=>{
  if(!startGPS())return;
  detailOnlyGPS=false;sharing=true;armed=false;epoch++;lastSent=0;lastFixSent=null;updateSharing();status('Preparing live sharing...');void arm();
 };
+// Sharing intent lives only in this page. A restored tab must obtain a post-return fix.
+function pauseVisibleSharing(){
+ if(!sharing||sharingPaused)return;
+ sharingPaused=true;armed=false;epoch++;
+ stopGPS();
+ status('Sharing paused while HuntLink is hidden.');
+}
+function resumeVisibleSharing(){
+ if(document.hidden||!joined||!sharing||!sharingPaused)return;
+ sharingPaused=false;earliestFix=Date.now();lastSent=0;
+ render();
+ if(!startGPS()){void stopSharing('GPS unavailable.');return;}
+ status(connected?'Waiting for a fresh GPS fix to resume sharing.':'Offline · location updates paused.');
+ if(connected)void arm();
+}
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden)pauseVisibleSharing();else resumeVisibleSharing();
+});
+window.addEventListener('pagehide',pauseVisibleSharing);
+window.addEventListener('pageshow',resumeVisibleSharing);
 // Retain only the anonymous ID needed to retry an interrupted leave after reload.
 function showPendingLeave(){
  $('retryLeave').hidden=!pendingLeave;
@@ -279,7 +300,7 @@ $('logout').onclick=()=>{
 };
 onValue(ref(db,'.info/serverTimeOffset'),s=>{offset=s.val()||0;});
 onValue(ref(db,'.info/connected'),s=>{connected=s.val()===true;connection();if(pendingLeave)showPendingLeave();if(!connected){armed=false;if(sharing){epoch++;status('Offline · location updates paused.');}}else if(pendingLeave){void finishLeave();}else if(sharing){lastSent=0;void arm();}render();});
-setInterval(()=>{render();void publishFix();if(sharing&&connected&&fix&&Date.now()-fix.time>30000)status('GPS update stale · waiting for a fresh fix');},5000);
+setInterval(()=>{render();void publishFix();if(sharing&&!sharingPaused&&connected&&fix&&Date.now()-fix.time>30000)status('GPS update stale · waiting for a fresh fix');},5000);
 try{
  await auth.authStateReady();
  uid=auth.currentUser?.uid||null; name=storage.get();$('name').value=name;

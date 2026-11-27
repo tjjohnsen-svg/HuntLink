@@ -54,7 +54,7 @@ export function parcelStyle(feature, basemap = 'topo') {
 // A small legend that matches the current basemap's colors.
 export function landLegend(basemap = 'topo') {
   const legend = document.createElement('div');
-  legend.className = 'land-legend';
+  legend.className = 'land-legend legend-' + basemap;
   for (const [code, label] of [['OA', 'Open'], ['RA', 'Restricted'], ['XA', 'Closed'], ['UK', 'Unknown']]) {
     const item = document.createElement('span');
     const swatch = document.createElement('i');
@@ -94,7 +94,7 @@ function addPopupStyle() {
   const style = document.createElement('style');
   style.textContent = '.land-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:2px 0 4px;font:600 13px system-ui,sans-serif}'
     + '.land-legend span{display:inline-flex;align-items:center;gap:5px}.land-legend i{width:16px;height:12px;border:3px solid;border-radius:2px;background:#0000;box-sizing:border-box}'
-    + '.land-legend{background:#f4f6f3;color:#192b23;border-radius:6px;padding:4px 8px}'
+    + '.land-legend{background:#f4f6f3;color:#192b23;border-radius:6px;padding:4px 8px}.legend-satellite{background:#111c16;color:#fff;border:1px solid #496353}'
     + '.parcel-info{font:15px/1.4 system-ui,sans-serif;color:#192b23}.parcel-info strong{display:block;font-size:16px;margin-bottom:2px}'
     + '.parcel-access{font-weight:700}.access-XA{color:#b71c1c}.access-RA{color:#8a4500}.access-UK{color:#455a64}.access-OA{color:#1b5e20}';
   document.head.append(style);

@@ -51,6 +51,7 @@ try {
  assert(await js("document.title==='Offline topo · HuntLinq' && !document.body.innerText.includes('HuntLink')"));
  const manifest=await js("fetch('manifest.webmanifest').then(r=>r.json())");
  assert(manifest.name==='HuntLinq' && manifest.short_name==='HuntLinq');
+ assert(manifest.icons.some(i=>i.purpose==='maskable'&&i.sizes==='512x512'),'manifest has a maskable icon');
  console.log('PASS offline page and manifest use HuntLinq');
  await js("testMap.setView([40,-115],14,{animate:false}); true");assert(await js("document.getElementById('download').disabled"));
  for(const [lat,lng,state] of [[47.3,-115.2,'Montana'],[45.3,-117.3,'Oregon']]){

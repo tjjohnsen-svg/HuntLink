@@ -4,7 +4,7 @@ const viewer = new URL('offline.html', scope).href;
 const files = ['offline.html', 'map-nav.css', 'offline.js', 'waypoints.js', 'public-land.js', 'offline-states.json', 'vendor/leaflet/leaflet.css',
   'vendor/leaflet/leaflet.js',
   ...['layers.png','layers-2x.png','marker-icon.png','marker-icon-2x.png','marker-shadow.png'].map(name=>'vendor/leaflet/images/'+name),
-  'vendor/firebase/firebase-app.js', 'vendor/firebase/firebase-auth.js', 'vendor/firebase/firebase-database.js', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
+  'vendor/firebase/firebase-app.js', 'vendor/firebase/firebase-auth.js', 'vendor/firebase/firebase-database.js', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'manifest.webmanifest'];
 const urls = new Set(files.map(file => new URL(file, scope).href));
 
 self.addEventListener('install', event => {

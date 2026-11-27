@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "HuntLink",
-  "short_name": "HuntLink",
+  "name": "HuntLinq",
+  "short_name": "HuntLinq",
   "description": "Private live location sharing for hunting groups.",
   "start_url": "./",
   "scope": "./",

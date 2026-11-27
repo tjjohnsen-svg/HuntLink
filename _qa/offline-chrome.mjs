@@ -6,7 +6,7 @@ import {strict as assert} from 'node:assert';
 const root=process.cwd(), image=await readFile('./tile');
 const fixture={};
 for(const state of ['ID','WA']) fixture[state]=JSON.parse(await readFile('./parcels-'+state+'.json','utf8'));
-let outage=false,fail=false,served=0,missing=false;
+let outage=false,fail=false,served=0,missing=false,flaky=false,retried=0,failAfter=Infinity,requests=0;const flakySeen=new Set();
 
 const server=createServer(async(req,res)=>{
  if(outage){req.socket.destroy();return;}
@@ -18,9 +18,9 @@ const server=createServer(async(req,res)=>{
     {type:'FeatureCollection',features:missing?[]:rows.filter(f=>ids.includes(f.properties.OBJECTID))};
   res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(data));return;
  }
- if(req.url.startsWith('/tiles/')){served++;res.writeHead(fail?503:200,{'Content-Type':'image/png'});res.end(image);return;}
+ if(req.url.startsWith('/tiles/')){requests++;if(flaky&&requests%10===0&&!flakySeen.has(req.url)){flakySeen.add(req.url);retried++;res.writeHead(503);res.end();return;}if(served>=failAfter){res.writeHead(503);res.end();return;}served++;res.writeHead(fail?503:200,{'Content-Type':'image/png'});res.end(image);return;}
  try{
- const file=new URL(req.url,'http://localhost').pathname.slice('/HuntLink/'.length);
+ const file=new URL(req.url,'http://localhost').pathname.split('/').slice(2).join('/');
  const type=file.endsWith('.js')?'application/javascript':file.endsWith('.html')?'text/html':file.endsWith('.css')?'text/css':'application/json';
  let data=await readFile(root+'/'+file);
  if(file==='public-land.js')data=data.toString().replace(/https:\/\/services.arcgis.com[^']+query/, '/parcels');
@@ -130,4 +130,49 @@ try {
  await call('Emulation.setGeolocationOverride',{latitude:46,longitude:-122,accuracy:9});await until("document.getElementById('gps').textContent.includes('outside')");
  await js("document.getElementById('stopGps').click()");assert.equal(await js("document.getElementById('gps').textContent"),'GPS off.');
  console.log('PASS closed page, offline PWA root reopened, cached topo rendered, simulated GPS inside/outside and stop');
+ outage=false;await close();
+ // Several saved areas, retries, resume, and the group's cached last-known spots.
+ await page(base+'offline.html');await until("document.getElementById('status')?.textContent.includes('Saved topo')");
+ assert(await js("areaList.options.length>=4 && !areaPick.hidden"));
+ await js("const o=[...areaList.options].find(o=>o.text.startsWith('Idaho'));areaList.value=o.value;areaList.dispatchEvent(new Event('change'));true");
+ await until("document.getElementById('status').textContent.includes('Idaho · Saved topo')");
+ console.log('PASS several saved areas listed and switchable');
+ const count=await js("areaList.options.length");
+ flaky=true;await js("choose.click();testMap.setView([43.70,-116.30],14,{animate:false});landToggle.checked=false;download.click();true");
+ await until("document.getElementById('status').textContent.includes('Idaho · Saved topo')");flaky=false;
+ assert(retried>0 && await js("areaList.options.length")===count+1);
+ console.log('PASS transient tile failures retried ('+retried+' retries) and saved as a new area');
+ const start=served;failAfter=served+40;
+ await js("choose.click();testMap.setView([43.80,-116.40],14,{animate:false});landToggle.checked=false;download.click();true");
+ await until("document.getElementById('status').textContent.includes('Resume download')");
+ assert(await js("!resume.hidden"));
+ const total=await js("progress.max"), before=served;failAfter=Infinity;
+ await js("window.seen=[];new MutationObserver(()=>seen.push(document.getElementById('status').textContent)).observe(document.getElementById('status'),{childList:true,characterData:true,subtree:true});resume.click();true");
+ await until("document.getElementById('status').textContent.includes('Idaho · Saved topo')");
+ const kept=Number((await js("seen.find(t=>t.startsWith('Resuming'))||''")).match(/(\d+) of/)?.[1]);
+ assert(kept>0 && served-before<total && served-before>=total-kept, 'kept '+kept+', resume fetched '+(served-before)+', total '+total);
+ console.log('PASS interrupted download resumed: '+kept+' saved tiles kept, '+(served-before)+' of '+total+' fetched');
+ await js("localStorage.setItem('huntlinkLastKnown',JSON.stringify({savedAt:Date.now(),hunters:[{name:'Test Hunter',lat:43.80,lng:-116.40,accuracy:5,time:Date.now()-7200000},{name:'Old',lat:43.80,lng:-116.40,time:Date.now()-8*3600000}]}));location.reload();true");
+ await until("!groupOption.hidden && [...document.querySelectorAll('.leaflet-tooltip')].some(t=>t.textContent==='Test Hunter · last 2h ago')");
+ assert(await js("![...document.querySelectorAll('.leaflet-tooltip')].some(t=>t.textContent.startsWith('Old'))"),'old hidden');
+ await js("groupToggle.click();true");await until("![...document.querySelectorAll('.leaflet-tooltip')].some(t=>t.textContent.startsWith('Test Hunter'))");
+ console.log('PASS cached group last-known spots shown on the offline map, expired ones hidden');
+ await close();
+ // A pack saved by the earlier single-area version still opens.
+ const legacy=base.replace('/HuntLink/','/Legacy/');
+ await page(legacy+'manifest.webmanifest');
+ await js(`new Promise(async(ok,no)=>{const blob=await (await fetch('${base}tiles/x')).blob();const r=indexedDB.open('huntlink-topo:/Legacy/',1);r.onupgradeneeded=()=>{r.result.createObjectStore('meta');r.result.createObjectStore('tiles');};r.onsuccess=()=>{const tx=r.result.transaction(['meta','tiles'],'readwrite');tx.objectStore('tiles').put(blob,'14/6000/3000');tx.objectStore('meta').put({state:'Idaho',bounds:[[43.60,-116.22],[43.63,-116.18]],count:1,bytes:100,date:Date.now()},'area');tx.oncomplete=()=>{r.result.close();ok(true)};tx.onerror=no;};r.onerror=no;})`);
+ await call('Page.navigate',{url:legacy+'offline.html'});
+ // Only one synthetic tile is stored, so the viewer may also warn about missing tiles.
+ await until("!document.getElementById('choose').hidden && document.getElementById('landNote').textContent.includes('Topo only')");
+ await js("window.confirm=()=>true;document.getElementById('delete').click();true");
+ await until("document.getElementById('saved').hidden && !document.getElementById('download').hidden");
+ console.log('PASS earlier single-area offline pack still opens after the storage upgrade, and deletes cleanly');
+ missing=true;
+ await js("testMap.setView([43.615,-116.202],14,{animate:false});landToggle.checked=true;download.click();true");
+ await until("document.getElementById('status').textContent.includes('incomplete')");
+ await js("landToggle.click();download.click();true");
+ await until("landNote.textContent.includes('Topo only')&&!landNote.hidden");
+ console.log('PASS topo-only retry after a boundary-service failure');
+
 } finally {socket.close();chrome.kill();server.closeAllConnections();server.close();}

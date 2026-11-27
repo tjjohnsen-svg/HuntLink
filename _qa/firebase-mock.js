@@ -8,4 +8,7 @@ const set=async(path,v)=>{if(path.startsWith('members/')&&v!=='test-only')throw 
 const remove=async path=>{removals.push(path);if(removeError)throw Object.assign(Error(),{code:removeError});if(held)await new Promise(r=>delayDelete=r)};
 const serverTimestamp=()=>now,get=async()=>({}),onDisconnect=()=>({remove:async()=>{arms++}});
 const onValue=(k,fn)=>{listeners[k]=v=>fn({val:()=>v});if(k==='.info/connected')listeners[k](true);return ()=>delete listeners[k]};
-Object.defineProperty(navigator,'geolocation',{value:{watchPosition:(s,e)=>{gps=s;gpsError=e;running=true;return 1},clearWatch:()=>running=false}});
+let polls=[],pollOk,wakeRequests=0,wakeReleases=0;
+Object.defineProperty(navigator,'geolocation',{value:{watchPosition:(s,e)=>{gps=s;gpsError=e;running=true;return 1},clearWatch:()=>running=false,getCurrentPosition:(s,e,o)=>{pollOk=s;polls.push(o)}}});
+Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{request:async()=>{wakeRequests++;return {release:async()=>{wakeReleases++},addEventListener(){}}}}});
+localStorage.clear();

@@ -1,16 +1,12 @@
 // USGS PAD-US Fee Managers. Restrict ownership as the inventory also includes private land.
-export function addPublicLand(map, control, L, notice) {
-  const service = 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Fee_Managers_PADUS/FeatureServer/0/query';
-  const coverage = L.latLngBounds([41.98, -124.9], [49.02, -111]);
-  const filter = "State_Nm IN ('ID','WA') AND Own_Type IN ('FED','STAT','LOC','DIST')";
-  const fields = 'Loc_Nm,Unit_Nm,Loc_Mang,Mang_Name,WebServiceMangName';
-  const limit = 150;
-  let request;
-  let timer;
+const service = 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Fee_Managers_PADUS/FeatureServer/0/query';
+const filter = "State_Nm IN ('ID','WA') AND Own_Type IN ('FED','STAT','LOC','DIST')";
+const fields = 'Loc_Nm,Unit_Nm,Loc_Mang,Mang_Name,WebServiceMangName';
 
+export function createParcelLayer(map, L) {
   const pane = map.createPane('publicLand');
   pane.style.zIndex = 390; // Below hunter markers and GPS accuracy circles.
-  const parcels = L.geoJSON(null, {
+  return L.geoJSON(null, {
     pane: 'publicLand',
     attribution: '<a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-web-services">USGS PAD-US</a>',
     style: {color: '#275e41', fillColor: '#76ce88', fillOpacity: 0.32, weight: 2},
@@ -25,6 +21,47 @@ export function addPublicLand(map, control, L, notice) {
       layer.bindPopup(content);
     }
   });
+}
+
+// Enumerate IDs first so a server result limit cannot silently truncate a saved area.
+export async function downloadPublicLand(bounds, signal) {
+  const spatial = {where:filter, geometry:bounds.toBBoxString(), geometryType:'esriGeometryEnvelope',
+    spatialRel:'esriSpatialRelIntersects', inSR:'4326'};
+  async function query(params) {
+    const response = await fetch(service+'?'+new URLSearchParams(params), {signal,credentials:'omit'});
+    if (!response.ok) throw Error('Parcel service unavailable');
+    return response.json();
+  }
+  const listing = await query({...spatial,f:'json',returnIdsOnly:'true'});
+  if (!Array.isArray(listing.objectIds) || listing.exceededTransferLimit) throw Error('Incomplete parcel list');
+  const ids = [...new Set(listing.objectIds)];
+  const features = [];
+  let bytes = 0;
+  for (let i=0; i<ids.length; i+=50) {
+    const batch = ids.slice(i,i+50);
+    const data = await query({...spatial,f:'geojson',objectIds:batch.join(','),outSR:'4326',
+      outFields:fields+','+listing.objectIdFieldName,returnGeometry:'true',geometryPrecision:'6',
+      maxAllowableOffset:String(360/(256*2**16))});
+    const pending = new Set(batch);
+    if (data.type!=='FeatureCollection' || !Array.isArray(data.features)) throw Error('Invalid parcel response');
+    for (const feature of data.features) {
+      if (!pending.delete(feature.properties?.[listing.objectIdFieldName] ?? feature.id) ||
+          !['Polygon','MultiPolygon'].includes(feature.geometry?.type)) throw Error('Invalid parcel');
+    }
+    if (pending.size) throw Error('Missing parcels');
+    bytes+=new Blob([JSON.stringify(data.features)]).size;
+    if (bytes>12*1048576) throw Error('Parcel data too large');
+    features.push(...data.features);
+  }
+  return {features,bytes};
+}
+
+export function addPublicLand(map, control, L, notice) {
+  const coverage = L.latLngBounds([41.98, -124.9], [49.02, -111]);
+  const limit = 150;
+  let request;
+  let timer;
+  const parcels = createParcelLayer(map,L);
   control.addOverlay(parcels, 'Public land · ID & WA');
 
   function reset() {

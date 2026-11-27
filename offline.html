@@ -22,6 +22,8 @@ section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;ove
 <div id="map" aria-label="Topographic map"></div>
 <section>
 <p id="status" role="status">Opening maps…</p>
+<label id="landOption" hidden><input id="landToggle" type="checkbox" checked> <span id="landLabel">Include public-land boundaries</span></label>
+<p id="landNote" hidden></p>
 <progress id="progress" hidden></progress>
 <div class="actions">
 <button id="locate" class="primary" hidden>My location</button>

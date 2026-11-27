@@ -1,3 +1,4 @@
+import { createParcelLayer, downloadPublicLand } from './public-land.js';
 import { setupWaypoints } from './waypoints.js';
 // The region outlines are generalized Census TIGERweb State_County polygons.
 const $ = id => document.getElementById(id);
@@ -10,6 +11,7 @@ L.control.scale({metric:false}).addTo(map);
 let db, states, area, plan, localTiles, controller, viewing = false;
 let watch = null, generation = 0, marker, accuracyCircle, lastPosition;
 
+const parcels = createParcelLayer(map,L);
 const waypoints = setupWaypoints(map, $, () => area && L.latLngBounds(area.bounds));
 
 function result(request) {
@@ -77,6 +79,8 @@ function controls() {
   $('locate').hidden = !!controller;
   $('stopGps').hidden = watch===null;
   $('progress').hidden = !controller;
+  $('landOption').hidden = !!controller || (viewing && !area?.publicLand?.length);
+  $('landNote').hidden = !viewing;
 }
 function stopGPS() {
   generation++;
@@ -142,19 +146,33 @@ function showSaved() {
   localTiles=new SavedTiles({bounds,noWrap:true,minZoom:12,maxNativeZoom:16,maxZoom:18,attribution}).addTo(map);
   localTiles.on('tileerror',()=>{if(viewing)$('status').textContent='A saved tile is missing or unreadable. Download this area again before leaving coverage.';});
   footprint.setBounds(bounds).addTo(map);
+  parcels.remove().clearLayers();
+  $('landToggle').checked=true;
+  $('landLabel').textContent='Show saved public land';
+  if (area.publicLand?.length) {
+    parcels.addData({type:'FeatureCollection',features:area.publicLand}).addTo(map);
+    $('landNote').textContent='USGS public land · Tap a shaded parcel for details. Verify hunting access locally.';
+  } else {
+    $('landNote').textContent=area.publicLand ? 'USGS returned no mapped public parcels in this area.'
+      : 'Topo only. Download this area again with public-land boundaries to see them offline.';
+  }
   $('status').textContent=area.state+' · Saved topo · '+(area.bytes/1048576).toFixed(1)+' MB · '+new Date(area.date).toLocaleDateString();
   if (lastPosition) displayPosition(lastPosition,false);
   else if (watch===null) $('gps').textContent='Tap My location for private GPS.';
   controls();
 }
 function choose() {
+  parcels.remove().clearLayers();
+  $('landLabel').textContent='Include public-land boundaries';
+  $('landToggle').checked=true;
   viewing=false; waypoints.hide(); stopGPS(); $('gps').textContent='';
   localTiles?.remove(); map.setMaxBounds(null); map.setMinZoom(5);
   onlineTiles.addTo(map); controls(); updatePlan();
 }
 async function download() {
   if (!plan || controller) return;
-  const selected=plan;
+  const selected=plan, includeLand=$('landToggle').checked;
+  let loadingLand=includeLand, publicLand;
   const active=new AbortController(); controller=active;
   const entries=[];
   let next=0, bytes=0, failure;
@@ -182,11 +200,18 @@ async function download() {
   }
   const timeout=setTimeout(()=>active.abort(),180000);
   try {
+    if (includeLand) {
+      $('status').textContent='Downloading public-land boundaries…';
+      const data=await downloadPublicLand(L.latLngBounds(selected.bounds),active.signal);
+      publicLand=data.features; bytes=data.bytes;
+      loadingLand=false;
+      $('status').textContent='Downloading topo tiles…';
+    }
     await Promise.all([worker(),worker(),worker(),worker()]);
     if (failure || active.signal.aborted) throw failure || Error('Interrupted');
     $('cancel').disabled=true;
     // Tiles and manifest replace the previous pack together, even across a crash or quota failure.
-    const info={state:selected.state,bounds:selected.bounds.map(p=>[p.lat,p.lng]),count:entries.length,bytes,date:Date.now()};
+    const info={state:selected.state,bounds:selected.bounds.map(p=>[p.lat,p.lng]),count:entries.length,publicLand,bytes,date:Date.now()};
     const tx=db.transaction(['tiles','meta'],'readwrite');
     const complete=finished(tx);
     try {
@@ -197,7 +222,7 @@ async function download() {
     await complete;
     area=info; showSaved();
   } catch {
-    $('status').textContent='Download incomplete. Check your connection and available storage, then retry.'+(area?' Your previous area is still saved.':'');
+    $('status').textContent=(loadingLand?'Download incomplete. Retry the boundaries or uncheck them for topo only.':'Download incomplete. Check your connection and available storage, then retry.')+(area?' Your previous area is still saved.':'');
   } finally {
     clearTimeout(timeout); controller=null; controls(); $('cancel').disabled=false;
     if (!viewing) { const message=$('status').textContent; updatePlan(); $('status').textContent=message; }
@@ -210,6 +235,11 @@ $('locate').onclick=()=>{
   else if (lastPosition) { stopGPS(); startGPS(); }
 };
 $('stopGps').onclick=()=>{stopGPS();$('gps').textContent='GPS off.';};
+$('landToggle').onchange=()=>{
+  if (viewing && area.publicLand?.length) {
+    if ($('landToggle').checked) parcels.addTo(map); else parcels.remove();
+  }
+};
 $('cancel').onclick=()=>controller?.abort();
 $('download').onclick=download;
 $('choose').onclick=choose;

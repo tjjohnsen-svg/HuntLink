@@ -1,7 +1,7 @@
 const scope = self.registration.scope;
-const shell = 'huntlink-offline-topo-v3:' + scope;
+const shell = 'huntlink-offline-topo-v4:' + scope;
 const viewer = new URL('offline.html', scope).href;
-const files = ['offline.html', 'offline.js', 'waypoints.js', 'offline-states.json', 'vendor/leaflet/leaflet.css',
+const files = ['offline.html', 'offline.js', 'waypoints.js', 'public-land.js', 'offline-states.json', 'vendor/leaflet/leaflet.css',
   'vendor/leaflet/leaflet.js', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 const urls = new Set(files.map(file => new URL(file, scope).href));
 

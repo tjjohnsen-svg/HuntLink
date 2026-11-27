@@ -49,6 +49,11 @@ await admin('PUT','',{config:{groupPassword:PW}});
 
 // 3. no CDN: load + join with gstatic/unpkg blocked
 const A=await user('alice',{latitude:45.0,longitude:-115.0,accuracy:8});
+ok(await A.page.title()==='HuntLinq','login title is HuntLinq');
+ok((await A.page.locator('#login h1').innerText()).includes('HuntLinq') && (await A.page.locator('#enter').innerText())==='Enter HuntLinq','login branding is HuntLinq');
+const manifest=await A.page.evaluate(async()=>fetch('./manifest.webmanifest').then(r=>r.json()));
+ok(manifest.name==='HuntLinq' && manifest.short_name==='HuntLinq','manifest installed name is HuntLinq');
+ok(!(await A.page.evaluate(()=>document.body.innerText.includes('HuntLink'))),'login screen has no HuntLink text');
 await join(A,'Alice Smith');
 await A.page.evaluate(()=>navigator.serviceWorker.ready.then(()=>true));
 const cached=await A.page.evaluate(async()=>{
@@ -117,7 +122,7 @@ await admin('PUT','config/groupPassword',PW);
 // 3. vendor files blocked -> watchdog
 const E=await user('erin',{latitude:45,longitude:-115},{block:/vendor\/firebase/});
 await E.page.waitForTimeout(2500);
-ok((await txt(E,'error')).includes("couldn't finish loading") && await E.page.locator('#reload').isVisible(),'load failure explained with Reload: '+await txt(E,'error'));
+ok((await txt(E,'error')).includes("HuntLinq couldn't finish loading") && await E.page.locator('#reload').isVisible(),'load failure explained with Reload: '+await txt(E,'error'));
 await E.page.screenshot({path:shots+'05-load-failure.png'});
 await A.page.screenshot({path:shots+'06-alice.png'});
 await browser.close(); server.close(); log('FAILURES',fails,'· screenshots in',work); process.exit(fails?1:0);

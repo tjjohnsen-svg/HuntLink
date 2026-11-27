@@ -1,7 +1,11 @@
 const online=v=>listeners['.info/connected'](v), sample=(t=now)=>gps({coords:{latitude:0.001,longitude:0.002,accuracy:12},timestamp:t});
+ok(document.title==='HuntLinq','login page title is HuntLinq');
+ok(document.querySelector('#login h1')?.textContent.includes('HuntLinq')&&$('enter').textContent==='Enter HuntLinq','login heading and enter button say HuntLinq');
+ok(!document.body.innerText.includes('HuntLink'),'login screen has no HuntLink text');
 const join=async pass=>{$('name').value='Tester';$('password').value=pass;$('loginForm').dispatchEvent(new Event('submit',{cancelable:true}));await flush()};
 await join('denied');ok($('app').hidden&&$('error').textContent.includes('Incorrect'),'denied login');
 await join('test-only');ok(!$('app').hidden&&!running&&records.length===0,'join private');
+ok(document.querySelector('#app h1')?.textContent.includes('HuntLinq')&&$('notice').textContent.includes('HuntLinq')&&!$('notice').textContent.includes('HuntLink'),'group map heading and tip say HuntLinq');
 map.invalidateSize();const size=map.getSize();ok(size.x>200&&size.y>100,'usable map space');
 ok(document.documentElement.scrollWidth<=innerWidth,'portrait fits horizontally');map.removeLayer(aerial);map.addLayer(topo);ok(map.hasLayer(topo),'topo selectable');
 const rail=document.querySelector('#app nav');

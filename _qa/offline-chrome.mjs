@@ -48,6 +48,10 @@ async function until(expr){for(let i=0;i<170;i++){try{if(await js(expr))return;}
 async function close(){await call('Target.closeTarget',{targetId:tab},null);sid=undefined;}
 try {
  await page(base+'offline.html');await until("document.querySelector('#status')?.textContent.includes('Pan')");
+ assert(await js("document.title==='Offline topo · HuntLinq' && !document.body.innerText.includes('HuntLink')"));
+ const manifest=await js("fetch('manifest.webmanifest').then(r=>r.json())");
+ assert(manifest.name==='HuntLinq' && manifest.short_name==='HuntLinq');
+ console.log('PASS offline page and manifest use HuntLinq');
  await js("testMap.setView([40,-115],14,{animate:false}); true");assert(await js("document.getElementById('download').disabled"));
  assert(await js("!locate.hidden&&stopGps.hidden"));
  await call('Browser.grantPermissions',{origin:new URL(base).origin,permissions:['geolocation']},null);

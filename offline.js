@@ -114,7 +114,7 @@ function updatePlan() {
   $('download').disabled = !plan;
   if (!plan) {
     footprint.remove();
-    $('status').textContent = navigator.onLine ? 'Pan to an area in Idaho or Washington and zoom in to select it.' : 'Connect to the internet to select and download a topo area.';
+    $('status').textContent = navigator.onLine ? 'Pan to an area in Idaho, Washington, Montana or Oregon and zoom in to select it.' : 'Connect to the internet to select and download a topo area.';
     return;
   }
   footprint.setBounds(plan.bounds).addTo(map);

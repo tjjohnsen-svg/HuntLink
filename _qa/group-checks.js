@@ -50,6 +50,7 @@ ok(parcelCalls===1,'small pan reuses the loaded area');
 const parcelWhere=parcelUrl.searchParams.get('where')||'';
 ok(parcelUrl.searchParams.get('orderByFields')==='GIS_Acres DESC'&&parcelWhere.includes("Own_Type IN ('FED','STAT') OR")&&parcelWhere.includes('SCHOOL'),
  'largest parcels first; small city and school parcels left out (QA H2)');
+ok(parcelWhere.includes("State_Nm IN ('ID','WA','MT','OR')"),'Montana and Oregon public land included (QA H4)');
 const pathsByAccess=[...document.querySelectorAll('.leaflet-publicLand-pane path')].map(e=>[e.getAttribute('stroke'),e.getAttribute('stroke-dasharray')||'']);
 ok(new Set(pathsByAccess.map(String)).size===3&&pathsByAccess[2][1]&&pathsByAccess[1][1],'open, restricted and closed land are drawn differently (QA H3)');
 const closedInfo=parcelPopup(synthParcels().features[2].properties).textContent;

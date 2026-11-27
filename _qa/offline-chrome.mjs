@@ -53,6 +53,11 @@ try {
  assert(manifest.name==='HuntLinq' && manifest.short_name==='HuntLinq');
  console.log('PASS offline page and manifest use HuntLinq');
  await js("testMap.setView([40,-115],14,{animate:false}); true");assert(await js("document.getElementById('download').disabled"));
+ for(const [lat,lng,state] of [[47.3,-115.2,'Montana'],[45.3,-117.3,'Oregon']]){
+  await js(`testMap.setView([${lat},${lng}],14,{animate:false}); true`);
+  await until(`!download.disabled&&document.getElementById('status').textContent.startsWith('${state} · Outlined')`);
+ }
+ console.log('PASS Montana and Oregon areas can be selected for offline topo');
  assert(await js("!locate.hidden&&stopGps.hidden"));
  await call('Browser.grantPermissions',{origin:new URL(base).origin,permissions:['geolocation']},null);
  await call('Emulation.setGeolocationOverride',{latitude:43.615,longitude:-116.202,accuracy:8});

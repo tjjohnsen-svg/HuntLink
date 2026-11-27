@@ -3,7 +3,7 @@ const service = 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/servic
 // Small city and district parcels are mostly parks, school grounds and road rights-of-way, where
 // hunting isn't allowed. Leaving them out keeps them from crowding BLM, Forest Service and state
 // land out of a busy view near town. Federal and state parcels are always included.
-const filter = "State_Nm IN ('ID','WA') AND Own_Type IN ('FED','STAT','LOC','DIST')"
+const filter = "State_Nm IN ('ID','WA','MT','OR') AND Own_Type IN ('FED','STAT','LOC','DIST')"
   + " AND (Own_Type IN ('FED','STAT') OR (GIS_Acres >= 40 AND Mang_Name NOT IN ('PVT','REG','UNKL')))"
   + " AND (Loc_Nm IS NULL OR UPPER(Loc_Nm) NOT LIKE '%SCHOOL%')";
 const fields = 'Loc_Nm,Unit_Nm,Loc_Mang,Mang_Name,WebServiceMangName,Pub_Access,Own_Type,Src_Date';
@@ -120,13 +120,14 @@ export async function downloadPublicLand(bounds, signal) {
 }
 
 export function addPublicLand(map, control, L, notice) {
-  const coverage = L.latLngBounds([41.98, -124.9], [49.02, -111]);
+  // Idaho, Washington, Montana and Oregon.
+  const coverage = L.latLngBounds([41.98, -124.9], [49.01, -104.03]);
   const limit = 150;
   let request;
   let timer;
   let loaded = null; // {box, zoom} for the area already shown (or being loaded).
   const parcels = createParcelLayer(map,L);
-  control.addOverlay(parcels, 'Public land · ID & WA');
+  control.addOverlay(parcels, 'Public land · ID, WA, MT & OR');
 
   function stop() {
     clearTimeout(timer);
@@ -151,12 +152,12 @@ export function addPublicLand(map, control, L, notice) {
     stop();
     if (!coverage.intersects(bounds)) {
       loaded = null; parcels.clearLayers();
-      notice.textContent = 'Public land coverage: Idaho and Washington.';
+      notice.textContent = 'Outside public-land coverage. HuntLinq maps public land in Idaho, Washington, Montana and Oregon only.';
       return;
     }
     if (zoom < 12) {
       loaded = null; parcels.clearLayers();
-      notice.textContent = 'Zoom in to see mapped public land in Idaho and Washington.';
+      notice.textContent = 'Zoom in to see mapped public land.';
       return;
     }
     // Keep the parcels already on screen while the new area loads.

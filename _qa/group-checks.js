@@ -30,7 +30,7 @@ const waitReal=ms=>new Promise(r=>setTimeout(r,ms));
 const realFetch=window.fetch;
 let parcelCalls=0;
 const synthParcels=()=>{const c=map.getCenter(),features=[];for(let i=0;i<6;i++){const x=c.lng-.02+i*.007,y=c.lat-.005;
- features.push({type:'Feature',properties:{OBJECTID:i+1,Loc_Nm:i===2?'SYNTHETIC CLOSED PARCEL':'Synthetic parcel '+(i+1),Mang_Name:['BLM','SDOL','SDOL'][i%3],Loc_Mang:i===2?'SYNTHETIC STATE OFFICE   ':'Unknown',Own_Type:['FED','STAT','STAT'][i%3],Pub_Access:['OA','RA','XA'][i%3],Src_Date:'2013/11/01',GIS_Acres:600},
+ features.push({type:'Feature',properties:{OBJECTID:parcelCalls*10+i+1,Loc_Nm:i===2?'SYNTHETIC CLOSED PARCEL':'Synthetic parcel '+(i+1),Mang_Name:['BLM','SDOL','SDOL'][i%3],Loc_Mang:i===2?'SYNTHETIC STATE OFFICE   ':'Unknown',Own_Type:['FED','STAT','STAT'][i%3],Pub_Access:['OA','RA','XA'][i%3],Src_Date:'2013/11/01',GIS_Acres:600},
  geometry:{type:'Polygon',coordinates:[[[x,y],[x+.005,y],[x+.005,y+.01],[x,y+.01],[x,y]]]}});}return {type:'FeatureCollection',features};};
 let parcelUrl='';
 window.fetch=async url=>{parcelCalls++;parcelUrl=new URL(String(url),location.href);const body=synthParcels();return {ok:true,json:async()=>body};};
@@ -51,6 +51,7 @@ const parcelWhere=parcelUrl.searchParams.get('where')||'';
 ok(parcelUrl.searchParams.get('orderByFields')==='GIS_Acres DESC'&&parcelWhere.includes("Own_Type IN ('FED','STAT') OR")&&parcelWhere.includes('SCHOOL'),
  'largest parcels first; small city and school parcels left out (QA H2)');
 ok(parcelWhere.includes("State_Nm IN ('ID','WA','MT','OR')"),'Montana and Oregon public land included (QA H4)');
+ok((parcelUrl.searchParams.get('outFields')||'').split(',').includes('OBJECTID'),'parcel IDs requested so loaded parcels can be reused');
 const pathsByAccess=[...document.querySelectorAll('.leaflet-publicLand-pane path')].map(e=>[e.getAttribute('stroke'),e.getAttribute('stroke-dasharray')||'']);
 ok(new Set(pathsByAccess.map(String)).size===3&&pathsByAccess[2][1]&&pathsByAccess[1][1],'open, restricted and closed land are drawn differently (QA H3)');
 const closedInfo=parcelPopup(synthParcels().features[2].properties).textContent;
@@ -58,6 +59,21 @@ ok(closedInfo.includes('Synthetic Closed Parcel')&&closedInfo.includes('Closed t
  &&closedInfo.includes('State Department of Lands · Synthetic State Office')&&closedInfo.includes('from 2013'),'parcel popup shows access, owner, readable manager and data year: '+closedInfo);
 const openInfo=parcelPopup(synthParcels().features[0].properties).textContent;
 ok(openInfo.includes('Open to the public')&&openInfo.includes('Manager: Bureau of Land Management')&&!openInfo.includes('Unknown'),'open BLM popup: '+openInfo);
+const home=map.getCenter();
+map.setView([46.9,-116.1],13,{animate:false});await waitReal(800);
+ok(parcelCalls===2&&parcelPaths()===12,'a new area loads and earlier parcels are kept: '+parcelCalls+' requests, '+parcelPaths()+' parcels');
+map.setView(home,13,{animate:false});await waitReal(800);
+ok(parcelCalls===2&&$('landNotice').textContent.includes('Tap for details'),'panning back reuses the earlier area (QA H5)');
+parcelButtonInNav.click();parcelButtonInNav.click();await waitReal(800);
+ok(parcelCalls===2&&parcelPaths()===12,'turning public land off and on reuses loaded parcels');
+window.fetch=async()=>{parcelCalls++;throw TypeError('Failed to fetch');};
+map.setView([46.5,-115.6],13,{animate:false});await waitReal(800);
+map.setView([46.5,-115.65],13,{animate:false});await waitReal(800);
+ok(parcelPaths()===12&&$('landNotice').textContent.includes('Showing parcels loaded earlier')===false,'no signal far away: nothing loaded there, says unavailable: '+$('landNotice').textContent);
+map.setView(home,12,{animate:false});await waitReal(2500);
+ok(parcelPaths()===12&&$('landNotice').textContent.includes('Showing parcels loaded earlier'),'no signal: earlier parcels stay with a clear message: '+$('landNotice').textContent);
+const failedCalls=parcelCalls;await waitReal(1500);
+ok(parcelCalls===failedCalls,'a failed load does not retry in a loop: '+(parcelCalls-failedCalls)+' extra requests');
 parcelButtonInNav.click();
 window.fetch=realFetch;
 $('huntersTool').click();

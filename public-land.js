@@ -122,23 +122,58 @@ export async function downloadPublicLand(bounds, signal) {
 export function addPublicLand(map, control, L, notice) {
   // Idaho, Washington, Montana and Oregon.
   const coverage = L.latLngBounds([41.98, -124.9], [49.01, -104.03]);
-  const limit = 150;
+  const limit = 150, maxCached = 1500;
   let request;
   let timer;
-  let loaded = null; // {box, zoom} for the area already shown (or being loaded).
+  let pending = null; // The area being loaded.
+  let failed = null; // The view where loading last failed.
+  // Areas already loaded this session, so panning back or toggling the layer reuses them
+  // instead of downloading again. Parcels are kept by ID, so overlapping areas don't duplicate.
+  let areas = [];
+  const cached = new Map();
   const parcels = createParcelLayer(map,L);
+  let added = null;
+  parcels.on('layeradd', event => { added = event.layer; });
   control.addOverlay(parcels, 'Public land · ID, WA, MT & OR');
+  const messages = {
+    partial: 'Partial public land coverage. Zoom in for more detail. Verify hunting access locally.',
+    shown: 'Green shading shows mapped public land. Tap for details. Verify hunting access locally.',
+    none: 'No public parcels mapped here by USGS. Ownership and access may vary.'
+  };
 
   function stop() {
     clearTimeout(timer);
     request?.abort();
     request = null;
+    pending = null;
   }
-  function reset() {
+  // Turning the layer off hides it but keeps what was loaded for this session.
+  function hide() {
     stop();
-    loaded = null;
-    parcels.clearLayers();
     notice.hidden = true;
+  }
+  const covering = (bounds, zoom) => areas.find(a => a.box.contains(bounds) && (a.partial ? a.zoom === zoom : a.zoom >= zoom - 1));
+  const parcelId = feature => feature.id ?? feature.properties?.OBJECTID ?? Symbol('parcel');
+
+  function store(features, zoom) {
+    for (const feature of features) {
+      const id = parcelId(feature);
+      const old = cached.get(id);
+      // Keep the more detailed copy of a parcel.
+      if (old && old.zoom >= zoom) continue;
+      if (old) parcels.removeLayer(old.layer);
+      added = null;
+      try { parcels.addData(feature); } catch { continue; } // Skip a parcel with broken geometry.
+      if (added) cached.set(id, {layer: added, zoom});
+    }
+    // Forget far-away parcels if a long session piles up too many for a phone to draw smoothly.
+    if (cached.size > maxCached) {
+      const keep = map.getBounds().pad(1);
+      for (const [id, item] of cached) {
+        if (!keep.intersects(item.layer.getBounds())) { parcels.removeLayer(item.layer); cached.delete(id); }
+      }
+      areas = areas.filter(a => keep.intersects(a.box));
+    }
   }
 
   function update() {
@@ -146,21 +181,25 @@ export function addPublicLand(map, control, L, notice) {
     notice.hidden = false;
     const bounds = map.getBounds(), zoom = map.getZoom();
     // The map also reports a "move" when the info panel under it grows or shrinks. If the view is
-    // still inside the area already loaded at this zoom, keep what is shown instead of reloading.
-    // Without this a changing message resized the map, which reloaded the layer, in an endless loop.
-    if (loaded && loaded.zoom === zoom && loaded.box.contains(bounds)) return;
+    // still inside an area already loaded, keep what is shown instead of reloading. Without this a
+    // changing message resized the map, which reloaded the layer, in an endless loop.
+    if (pending && pending.zoom === zoom && pending.box.contains(bounds)) return;
+    // After a failed load, the longer message can resize the map. Only a real pan or zoom retries,
+    // otherwise a resize would retry, fail and resize again in a loop.
+    if (failed && failed.zoom === zoom && map.latLngToContainerPoint(failed.center).distanceTo(map.getSize().divideBy(2)) < 2) return;
+    failed = null;
+    const known = covering(bounds, zoom);
+    if (known) { stop(); notice.textContent = known.message; return; }
     stop();
     if (!coverage.intersects(bounds)) {
-      loaded = null; parcels.clearLayers();
       notice.textContent = 'Outside public-land coverage. HuntLinq maps public land in Idaho, Washington, Montana and Oregon only.';
       return;
     }
     if (zoom < 12) {
-      loaded = null; parcels.clearLayers();
       notice.textContent = 'Zoom in to see mapped public land.';
       return;
     }
-    // Keep the parcels already on screen while the new area loads.
+    // Parcels already on screen stay visible while the new area loads.
     notice.textContent = 'Loading public land…';
     // Request an outward-rounded map area with some margin, so small pans and panel resizes reuse it.
     // No individual location records are sent.
@@ -168,9 +207,9 @@ export function addPublicLand(map, control, L, notice) {
     const box = [Math.floor(padded.getWest()*100), Math.floor(padded.getSouth()*100),
       Math.ceil(padded.getEast()*100), Math.ceil(padded.getNorth()*100)].map(v => v/100);
     const target = {box: L.latLngBounds([box[1], box[0]], [box[3], box[2]]), zoom};
-    loaded = target;
+    pending = target;
     const query = new URLSearchParams({
-      f: 'geojson', where: filter, outFields: fields, geometry: box.join(','),
+      f: 'geojson', where: filter, outFields: fields + ',OBJECTID', geometry: box.join(','),
       geometryType: 'esriGeometryEnvelope', spatialRel: 'esriSpatialRelIntersects',
       inSR: '4326', outSR: '4326', returnGeometry: 'true', resultRecordCount: String(limit),
       // If a view still has more parcels than the limit, the largest ones come first.
@@ -187,28 +226,28 @@ export function addPublicLand(map, control, L, notice) {
         const data = await response.json();
         if (request !== active) return;
         if (!Array.isArray(data.features) || data.type !== 'FeatureCollection') throw Error();
-        parcels.clearLayers();
-        parcels.addData(data);
-        if (data.features.length >= limit || data.exceededTransferLimit || data.properties?.exceededTransferLimit) {
-          notice.textContent = 'Partial public land coverage. Zoom in for more detail. Verify hunting access locally.';
-        } else {
-          notice.textContent = data.features.length
-            ? 'Green shading shows mapped public land. Tap for details. Verify hunting access locally.'
-            : 'No public parcels mapped here by USGS. Ownership and access may vary.';
-        }
+        store(data.features, zoom);
+        const partial = data.features.length >= limit || !!data.exceededTransferLimit || !!data.properties?.exceededTransferLimit;
+        const message = partial ? messages.partial : data.features.length ? messages.shown : messages.none;
+        areas.push({...target, partial, message});
+        if (areas.length > 40) areas.shift();
+        notice.textContent = message;
       } catch {
         if (request !== active) return;
-        if (loaded === target) loaded = null;
-        notice.textContent = 'Public land unavailable. Move the map or toggle the layer to retry.';
+        failed = {center: map.getCenter(), zoom};
+        const visible = map.getBounds();
+        notice.textContent = [...cached.values()].some(item => visible.intersects(item.layer.getBounds()))
+          ? 'Couldn\'t update public land (weak or no signal). Showing parcels loaded earlier; some may be missing. Move the map to retry.'
+          : 'Public land unavailable. Move the map or toggle the layer to retry.';
       } finally {
         clearTimeout(timeout);
-        if (request === active) request = null;
+        if (request === active) { request = null; pending = null; }
       }
     }, 200);
   }
 
   parcels.on('add', update);
-  parcels.on('remove', reset);
+  parcels.on('remove', hide);
   map.on('moveend', () => { if (map.hasLayer(parcels)) update(); });
   return parcels;
 }

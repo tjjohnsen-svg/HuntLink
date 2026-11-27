@@ -45,6 +45,67 @@ const map=L.map('map',{center:[48,-116.85],zoom:12,layers:[aerial],maxZoom:19});
 const layers=L.control.layers({Aerial:aerial,Topographic:topo}).addTo(map);
 const publicLand=addPublicLand(map,layers,L,$('landNotice'));
 L.control.scale({metric:false,imperial:true}).addTo(map);
+ 
+const customLandmarks = [
+  { name: "Elk's Nest", lat: 47.66231, lng: -116.32481 },
+  { name: "Hell", lat: 47.65699, lng: -116.33398 },
+  { name: "Ninja Camp", lat: 47.67611, lng: -116.33339 },
+  { name: "Ninja Ridge", lat: 47.67158, lng: -116.33583 },
+  { name: "Rock Pit Camp", lat: 47.65699, lng: -116.36280 },
+  { name: "County Creek Camp", lat: 47.63218, lng: -116.31708 },
+  { name: "Wonderland", lat: 47.60779, lng: -116.26976 },
+  { name: "Wallow Creek Ridge", lat: 47.60179, lng: -116.27872 },
+  { name: "Wallow Creek", lat: 47.59839, lng: -116.26624 },
+  { name: "Plywood Shack", lat: 47.62362, lng: -116.20762 }
+];
+
+const customLandmarkLayer = L.layerGroup();
+
+map.createPane('landmarkLabels');
+map.getPane('landmarkLabels').style.zIndex = 450;
+map.getPane('landmarkLabels').style.pointerEvents = 'none';
+
+customLandmarks.forEach(place => {
+  const label = document.createElement('span');
+  label.textContent = place.name;
+
+  Object.assign(label.style, {
+    display: 'block',
+    width: 'max-content',
+    transform: 'translate(-50%, -50%)',
+    color: '#ffffff',
+    fontSize: '13px',
+    fontWeight: '700',
+    whiteSpace: 'nowrap',
+    textShadow: '1px 1px 2px black, -1px -1px 2px black, 0 0 5px black'
+  });
+
+  L.marker([place.lat, place.lng], {
+    pane: 'landmarkLabels',
+    interactive: false,
+    keyboard: false,
+    icon: L.divIcon({
+      className: 'huntlink-landmark',
+      html: label,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0]
+    })
+  }).addTo(customLandmarkLayer);
+});
+
+function updateLandmarkVisibility() {
+  if (map.getZoom() >= 14) {
+    if (!map.hasLayer(customLandmarkLayer)) {
+      customLandmarkLayer.addTo(map);
+    }
+  } else {
+    map.removeLayer(customLandmarkLayer);
+  }
+}
+
+map.on('zoomend', updateLandmarkVisibility);
+updateLandmarkVisibility();
+
 let uid=null, name='', joined=false, connected=false, offset=0, unsubscribe=null;
 let ownMarker=null, circle=null, watch=null, fix=null, sharing=false, armed=false, writing=false, lastSent=0, epoch=0;
 let locations={}, markers=new Map(), busy=false;

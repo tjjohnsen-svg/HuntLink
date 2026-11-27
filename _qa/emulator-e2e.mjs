@@ -51,13 +51,16 @@ const friends=async u=>{await u.page.evaluate(()=>{if(document.getElementById('f
 await admin('PUT','',{config:{groupPassword:PW}});
 
 // 3. no CDN: load + join with gstatic/unpkg blocked
-const A=await user('alice',{latitude:45.0,longitude:-115.0,accuracy:8});
+const A=await user('alice',{latitude:45.0,longitude:-115.0,accuracy:8},{init:()=>{const real=navigator.credentials?.store?.bind(navigator.credentials);if(real)navigator.credentials.store=c=>{window.__offered=(window.__offered||[]).concat([[c.type,c.id,!!c.password]]);return real(c).catch(()=>{});};}});
 ok(await A.page.title()==='HuntLinq','login title is HuntLinq');
 ok((await A.page.locator('#login h1').innerText()).includes('HuntLinq') && (await A.page.locator('#enter').innerText())==='Enter HuntLinq','login branding is HuntLinq');
 const manifest=await A.page.evaluate(async()=>fetch('./manifest.webmanifest').then(r=>r.json()));
 ok(manifest.name==='HuntLinq' && manifest.short_name==='HuntLinq','manifest installed name is HuntLinq');
 ok(!(await A.page.evaluate(()=>document.body.innerText.includes('HuntLink'))),'login screen has no HuntLink text');
 await join(A,'Alice Smith');
+const offered=await A.page.evaluate(()=>window.__offered||[]);
+ok(offered.length===1&&offered[0][0]==='password'&&offered[0][1]==='Alice Smith'&&offered[0][2],'successful join offers the login to the password manager: '+JSON.stringify(offered));
+ok(!(await A.page.evaluate(pw=>Object.keys(localStorage).some(k=>String(localStorage.getItem(k)).includes(pw)),PW)),'group password not in localStorage after join');
 await A.page.evaluate(()=>navigator.serviceWorker.ready.then(()=>true));
 const cached=await A.page.evaluate(async()=>{
   const urls=['vendor/leaflet/leaflet.js','vendor/leaflet/leaflet.css','vendor/firebase/firebase-app.js','vendor/firebase/firebase-auth.js','vendor/firebase/firebase-database.js'];

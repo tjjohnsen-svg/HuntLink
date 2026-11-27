@@ -42,7 +42,7 @@
 <link rel="stylesheet" href="./map-nav.css">
 </head>
 <body>
-<section id="login"><form id="loginForm"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" maxlength="50" required autocomplete="nickname" placeholder="Name on map"><small class="hint" id="nameHint">Use any name you want — it's what your group sees on the map.</small></label><label>Hunt group password<input id="password" type="password" required autocomplete="off" placeholder="Shared password"></label><p id="loginNote" role="status" hidden></p><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
+<section id="login"><form id="loginForm" method="post" action="./" autocomplete="on"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" name="username" maxlength="50" required autocomplete="username" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint" id="nameHint">Use any name you want — it's what your group sees on the map.</small></label><label>Hunt group password<input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Shared password"></label><p id="loginNote" role="status" hidden></p><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
 <section id="app" hidden>
 <header><h1>🌲 HuntLinq</h1></header>
 <nav class="map-tools" aria-label="Group map tools">
@@ -297,6 +297,14 @@ const OFFLINE_HINT='No connection. The group map needs signal to check the passw
 // The sharing a hunter had on when HuntLinq closed. It resumes only after they enter the password again.
 function sharingToResume(){const intent=local.get('huntlinkSharing');return !!(uid&&intent&&intent.uid===uid&&Date.now()-intent.at<12*3600000);}
 function loginNote(text){$('loginNote').textContent=text;$('loginNote').hidden=!text;}
+// Tell password managers (iPhone Keychain, Google Password Manager, Samsung Pass) the sign-in worked.
+// Values are read on submit and the form is hidden after a correct password, which managers read as success; Chrome-based browsers also get an explicit offer to save.
+// The password goes only to the phone's password manager, never to localStorage.
+function savePassword(username,password){
+ try{if(window.PasswordCredential&&navigator.credentials?.store)navigator.credentials.store(new PasswordCredential({id:username,password,name:username})).catch(()=>{});}catch{}
+ try{history.replaceState(history.state,'',location.pathname+location.search);}catch{}
+ $('password').value='';
+}
 function joinError(e){
  if(isDenied(e))return 'Incorrect group password or database rules.';
  const msg=String(e?.code||'')+' '+String(e?.message||'');
@@ -311,10 +319,12 @@ async function enter(e){
   name=$('name').value.trim(); if(!name||name.length>50)throw new Error('Enter your name.');
   if(!auth.currentUser)await signInAnonymously(auth);uid=auth.currentUser.uid;
   if(!connected)throw new Error(OFFLINE_HINT);
-  await set(memberRef(),$('password').value);
-  $('password').value=''; storage.set(name); loginNote('');
+  const password=$('password').value;
+  await set(memberRef(),password);
+  storage.set(name); loginNote('');
   const resume=sharingToResume();
   openMap();
+  savePassword(name,password);
   if(local.get('huntlinkPendingStop')===uid)void stopSharing();
   else if(resume)startSharing(true);
   else local.clear('huntlinkSharing');

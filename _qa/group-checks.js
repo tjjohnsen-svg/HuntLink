@@ -4,6 +4,10 @@ ok(document.querySelector('#login h1')?.textContent.includes('HuntLinq')&&$('ent
 ok(!document.body.innerText.includes('HuntLink'),'login screen has no HuntLink text');
 ok($('nameHint').textContent.includes('Use any name you want')&&$('name').parentElement.contains($('nameHint')),'name field explains any name works');
 ok($('loginNote').hidden,'first launch shows no welcome-back note');
+ok($('name').closest('form')===$('loginForm')&&$('password').closest('form')===$('loginForm')&&$('enter').type==='submit'&&$('loginForm').contains($('enter')),'name, password and Enter button are in one real form');
+ok($('name').autocomplete==='username'&&$('name').name==='username'&&$('name').type==='text','name field is the username for password managers');
+ok($('password').type==='password'&&$('password').autocomplete==='current-password'&&$('password').name==='password','password field is a current-password for password managers');
+ok(document.querySelector('label').contains($('name'))&&$('nameHint').offsetParent!==null,'name keeps its visible label and helper text');
 const join=async pass=>{$('name').value='Tester';$('password').value=pass;$('loginForm').dispatchEvent(new Event('submit',{cancelable:true}));await flush()};
 await join('denied');ok($('app').hidden&&$('error').textContent.includes('Incorrect'),'denied login');
 await join('test-only');ok(!$('app').hidden&&!running&&records.length===0,'join private');

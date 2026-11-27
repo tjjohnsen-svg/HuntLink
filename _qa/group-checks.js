@@ -32,7 +32,8 @@ let parcelCalls=0;
 const synthParcels=()=>{const c=map.getCenter(),features=[];for(let i=0;i<6;i++){const x=c.lng-.02+i*.007,y=c.lat-.005;
  features.push({type:'Feature',properties:{OBJECTID:i+1,Loc_Nm:'Synthetic parcel '+(i+1),Mang_Name:'BLM',Own_Type:'FED',Pub_Access:'OA',GIS_Acres:600},
  geometry:{type:'Polygon',coordinates:[[[x,y],[x+.005,y],[x+.005,y+.01],[x,y+.01],[x,y]]]}});}return {type:'FeatureCollection',features};};
-window.fetch=async()=>{parcelCalls++;const body=synthParcels();return {ok:true,json:async()=>body};};
+let parcelUrl='';
+window.fetch=async url=>{parcelCalls++;parcelUrl=new URL(String(url),location.href);const body=synthParcels();return {ok:true,json:async()=>body};};
 const parcelPaths=()=>document.querySelectorAll('.leaflet-publicLand-pane path').length;
 map.setView([46.5,-116.5],13,{animate:false});
 parcelButtonInNav.click();
@@ -46,6 +47,9 @@ map.panBy([40,0],{animate:false});
 ok(parcelPaths()===6,'parcels stay visible right after a small pan');
 await waitReal(800);
 ok(parcelCalls===1,'small pan reuses the loaded area');
+const parcelWhere=parcelUrl.searchParams.get('where')||'';
+ok(parcelUrl.searchParams.get('orderByFields')==='GIS_Acres DESC'&&parcelWhere.includes("Own_Type IN ('FED','STAT') OR")&&parcelWhere.includes('SCHOOL'),
+ 'largest parcels first; small city and school parcels left out (QA H2)');
 parcelButtonInNav.click();
 window.fetch=realFetch;
 $('huntersTool').click();

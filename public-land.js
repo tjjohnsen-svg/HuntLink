@@ -1,6 +1,11 @@
 // USGS PAD-US Fee Managers. Restrict ownership as the inventory also includes private land.
 const service = 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Fee_Managers_PADUS/FeatureServer/0/query';
-const filter = "State_Nm IN ('ID','WA') AND Own_Type IN ('FED','STAT','LOC','DIST')";
+// Small city and district parcels are mostly parks, school grounds and road rights-of-way, where
+// hunting isn't allowed. Leaving them out keeps them from crowding BLM, Forest Service and state
+// land out of a busy view near town. Federal and state parcels are always included.
+const filter = "State_Nm IN ('ID','WA') AND Own_Type IN ('FED','STAT','LOC','DIST')"
+  + " AND (Own_Type IN ('FED','STAT') OR (GIS_Acres >= 40 AND Mang_Name NOT IN ('PVT','REG','UNKL')))"
+  + " AND (Loc_Nm IS NULL OR UPPER(Loc_Nm) NOT LIKE '%SCHOOL%')";
 const fields = 'Loc_Nm,Unit_Nm,Loc_Mang,Mang_Name,WebServiceMangName';
 
 export function createParcelLayer(map, L) {
@@ -109,6 +114,8 @@ export function addPublicLand(map, control, L, notice) {
       f: 'geojson', where: filter, outFields: fields, geometry: box.join(','),
       geometryType: 'esriGeometryEnvelope', spatialRel: 'esriSpatialRelIntersects',
       inSR: '4326', outSR: '4326', returnGeometry: 'true', resultRecordCount: String(limit),
+      // If a view still has more parcels than the limit, the largest ones come first.
+      orderByFields: 'GIS_Acres DESC',
       geometryPrecision: '6', maxAllowableOffset: String(360 / (256 * 2 ** zoom))
     });
     timer = setTimeout(async () => {

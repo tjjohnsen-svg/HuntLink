@@ -95,6 +95,8 @@ publicLand.on('add remove',event=>{
 parcelButton.onclick=()=>{
  if(map.hasLayer(publicLand)) publicLand.remove();
  else publicLand.addTo(map);
+ // Remember the choice on this phone for next time.
+ try{localStorage.setItem('huntlinkPublicLand',String(map.hasLayer(publicLand)));}catch{}
 };
 $('layerOptions').append(layers.getContainer());
 function showTools(active) {
@@ -281,7 +283,11 @@ function openMap(){
  status('GPS not started. Sharing off.');
  showTools(null); joined=true; $('login').hidden=true; $('app').hidden=false; $('error').textContent=''; connection(); updateSharing();
  $('notice').hidden=!!local.get('huntlinkTipSeen');
- requestAnimationFrame(()=>map.invalidateSize());
+ requestAnimationFrame(()=>{
+  map.invalidateSize();
+  let showLand=false;try{showLand=localStorage.getItem('huntlinkPublicLand')==='true';}catch{}
+  if(showLand&&!map.hasLayer(publicLand))publicLand.addTo(map);
+ });
  if(unsubscribe)unsubscribe();
  unsubscribe=onValue(ref(db,'locations'),s=>{haveSnapshot=true;locations=s.val()||{};render()},()=>{haveSnapshot=true;locations={};render();status('Group access denied. Leave and rejoin with the current password.');if(sharing)void stopSharing();});
 }

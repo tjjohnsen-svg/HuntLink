@@ -38,6 +38,7 @@ const parcelPaths=()=>document.querySelectorAll('.leaflet-publicLand-pane path')
 map.setView([46.5,-116.5],13,{animate:false});
 parcelButtonInNav.click();
 await waitReal(1500);
+ok(localStorage.getItem('huntlinkPublicLand')==='true','public-land choice remembered on this phone (on)');
 ok(parcelCalls===1&&parcelPaths()===6,'public land loads once: '+parcelCalls+' requests, '+parcelPaths()+' parcels');
 const extraLine=document.createElement('div');extraLine.textContent='Extra text that wraps onto more lines and changes the panel height under the map.';$('landNotice').append(extraLine);
 map.invalidateSize();
@@ -90,6 +91,7 @@ ok(parcelPaths()===pathsBeforeFail&&$('landNotice').textContent.includes('Showin
 const failedCalls=parcelCalls;await waitReal(1500);
 ok(parcelCalls===failedCalls,'a failed load does not retry in a loop: '+(parcelCalls-failedCalls)+' extra requests');
 parcelButtonInNav.click();
+ok(localStorage.getItem('huntlinkPublicLand')==='false','public-land choice remembered on this phone (off)');
 window.fetch=realFetch;
 $('huntersTool').click();
 ok(!$('friends').hidden && $('layerOptions').hidden && $('huntersTool').getAttribute('aria-expanded')==='true','hunter list opens from navigation');

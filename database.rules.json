@@ -66,12 +66,18 @@
           },
           "$other": {
             ".validate": false
+          },
+          "approval": {
+            ".validate": "newData.isBoolean()"
+          },
+          "lock": {
+            ".validate": "newData.isBoolean()"
           }
         },
         "members": {
           ".read": "auth != null && data.child(auth.uid).exists()",
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (!data.exists() && newData.child('role').val() === 'leader' && !data.parent().parent().child('info').exists() && newData.parent().parent().child('info').child('leader').val() === auth.uid) || (!data.exists() && newData.child('role').val() === 'member' && data.parent().parent().child('info').child('invite').isString() && newData.child('key').val() === data.parent().parent().child('info').child('invite').val()) || (data.exists() && newData.exists() && newData.child('role').val() === data.child('role').val() && newData.child('joinedAt').val() === data.child('joinedAt').val() && newData.child('key').val() === data.child('key').val()))",
+            ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || (!data.exists() && newData.child('role').val() === 'leader' && !data.parent().parent().child('info').exists() && newData.parent().parent().child('info').child('leader').val() === auth.uid) || (!data.exists() && newData.child('role').val() === 'member' && data.parent().parent().child('info').child('approval').val() !== true && !data.parent().parent().child('removed').child($uid).exists() && data.parent().parent().child('info').child('invite').isString() && newData.child('key').val() === data.parent().parent().child('info').child('invite').val()) || (data.exists() && newData.exists() && newData.child('role').val() === data.child('role').val() && newData.child('joinedAt').val() === data.child('joinedAt').val() && newData.child('key').val() === data.child('key').val()))) || (auth.uid !== $uid && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader' && (!newData.exists() || (!data.exists() && newData.child('role').val() === 'member' && data.parent().parent().child('pending').child($uid).exists() && newData.child('name').val() === data.parent().parent().child('pending').child($uid).child('name').val() && newData.child('key').val() === data.parent().parent().child('pending').child($uid).child('key').val()) || (data.exists() && newData.exists() && newData.child('name').val() === data.child('name').val() && newData.child('joinedAt').val() === data.child('joinedAt').val() && newData.child('key').val() === data.child('key').val()))))",
             ".validate": "newData.hasChildren(['name','role','joinedAt'])",
             "name": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
@@ -91,9 +97,9 @@
           }
         },
         "locations": {
-          ".read": "auth != null && data.parent().child('members').child(auth.uid).exists()",
+          ".read": "auth != null && data.parent().child('members').child(auth.uid).exists() && (data.parent().child('info').child('lock').val() !== true || (data.parent().child('unlocked').child(auth.uid).isString() && data.parent().child('unlocked').child(auth.uid).val() === data.parent().child('lock').val()))",
           "$uid": {
-            ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || data.parent().parent().child('members').child(auth.uid).exists())) || (!newData.exists() && data.child('updatedAt').isNumber() && data.child('updatedAt').val() < now - 21600000 && data.parent().parent().child('members').child(auth.uid).exists()))",
+            ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || (data.parent().parent().child('members').child(auth.uid).exists() && (data.parent().parent().child('info').child('lock').val() !== true || (data.parent().parent().child('unlocked').child(auth.uid).isString() && data.parent().parent().child('unlocked').child(auth.uid).val() === data.parent().parent().child('lock').val()))))) || (!newData.exists() && data.child('updatedAt').isNumber() && data.child('updatedAt').val() < now - 21600000 && data.parent().parent().child('members').child(auth.uid).exists()) || (!newData.exists() && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader'))",
             ".validate": "newData.hasChildren(['name', 'lat', 'lng', 'accuracy', 'updatedAt'])",
             "name": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
@@ -117,6 +123,43 @@
               ".validate": false
             }
           }
+        },
+        "pending": {
+          ".read": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader'",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || (!data.exists() && data.parent().parent().child('info').child('approval').val() === true && !data.parent().parent().child('removed').child($uid).exists() && !data.parent().parent().child('members').child($uid).exists() && data.parent().parent().child('info').child('invite').isString() && newData.child('key').val() === data.parent().parent().child('info').child('invite').val()))) || (!newData.exists() && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader'))",
+            ".validate": "newData.hasChildren(['name','key','at'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+            },
+            "key": {
+              ".validate": "newData.isString()"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() <= now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "removed": {
+          ".read": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader'",
+          "$uid": {
+            ".write": "auth != null && auth.uid !== $uid && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader'",
+            ".validate": "newData.val() === true"
+          }
+        },
+        "lock": {
+          ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).child('role').val() === 'leader'",
+          ".validate": "newData.isString() && newData.val().length >= 4 && newData.val().length <= 100"
+        },
+        "unlocked": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (root.child('groups').child($gid).child('members').child($uid).exists() && newData.val() === newData.parent().parent().child('lock').val()))",
+            ".validate": "newData.isString()"
+          }
         }
       }
     },
@@ -136,12 +179,16 @@
         },
         "people": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid && (!newData.exists() || newData.parent().parent().parent().parent().child('groups').child(newData.parent().parent().child('g').val()).child('members').child($uid).exists())",
+            ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || newData.parent().parent().parent().parent().child('groups').child(newData.parent().parent().child('g').val()).child('members').child($uid).exists())) || (root.child('groups').child(data.parent().parent().child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader' && (!newData.exists() || newData.parent().parent().parent().parent().child('groups').child(newData.parent().parent().child('g').val()).child('members').child($uid).exists())))",
             ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
           }
         },
         "$other": {
           ".validate": false
+        },
+        "ask": {
+          ".write": "auth != null && root.child('groups').child(data.parent().child('g').val()).child('members').child(auth.uid).child('role').val() === 'leader'",
+          ".validate": "newData.isBoolean()"
         }
       }
     },

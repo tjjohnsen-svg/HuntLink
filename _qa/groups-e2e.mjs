@@ -179,5 +179,87 @@ ok(Object.values(legacyLoc||{}).some(x=>x.name==='Old Timer'),'original group sh
 await openHunters(A);
 ok(!(await txt(A,'#friends')).includes('Old Timer'),'a new group never sees the original group');
 
+
+// 10. Leader controls: approval, let in, decline.
+await openGroupPanel(A);
+ok(await visible(A,'#leaderTools') && !(await visible(B,'#leaderTools')),'leader settings show only for leaders');
+await A.page.check('#approvalToggle');
+await A.page.waitForFunction(()=>document.getElementById('leaderStatus').textContent.includes('wait for a leader'),null,{timeout:10000});
+await shot(A,'08-leader-settings');
+const link2=await A.page.locator('#inviteLink').inputValue();
+const G=await user('gail',{latitude:45.004,longitude:-115.001,accuracy:6},{url:link2});
+await G.page.waitForFunction(()=>document.getElementById('joinGo').textContent==='Ask to join',null,{timeout:15000});
+ok((await txt(G,'#joinWho')).includes('approves new members'),'preview says the leader approves new members');
+await G.page.fill('#joinName','Gail'); await G.page.click('#joinGo');
+await G.page.waitForSelector('#waiting:not([hidden])',{timeout:10000});
+ok((await txt(G,'#waitingWho')).includes('TJ will let you in'),'requester sees Request sent');
+await shot(G,'09-request-sent');
+await G.page.reload(); await G.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000});
+ok(await visible(G,'#waiting'),'request survives closing and reopening the app');
+await A.page.waitForFunction(()=>document.getElementById('pendingList').textContent.includes('Gail'),null,{timeout:10000});
+ok(await visible(A,'#pendingBox'),'leader sees Gail waiting');
+await shot(A,'10-waiting-to-join');
+await A.page.click('#pendingList button.primary');
+await waitMap(G);
+ok((await txt(G,'#groupLabel'))==='Elk camp 2026','Let in opens the map on the requester phone');
+const H=await user('hank',{latitude:45.004,longitude:-115.002,accuracy:6},{url:link2});
+await H.page.waitForFunction(()=>document.getElementById('joinGo').textContent==='Ask to join',null,{timeout:15000});
+await H.page.fill('#joinName','Hank'); await H.page.click('#joinGo'); await H.page.waitForSelector('#waiting:not([hidden])',{timeout:10000});
+await A.page.waitForFunction(()=>document.getElementById('pendingList').textContent.includes('Hank'),null,{timeout:10000});
+await A.page.click('#pendingList li:has-text("Hank") button:has-text("Decline")');
+await H.page.waitForSelector('#start:not([hidden])',{timeout:10000});
+ok((await txt(H,'#startNote')).includes("wasn't accepted"),'declined requester is told plainly');
+await A.page.uncheck('#approvalToggle');
+
+// 11. Co-leader and remove.
+await A.page.waitForFunction(()=>document.getElementById('memberList').textContent.includes('Gail'),null,{timeout:10000});
+await A.page.click('#memberList li:has-text("Gail") button:has-text("Make leader")');
+await G.page.waitForFunction(()=>!document.getElementById('leaderTools').hidden||true,null,{timeout:2000});
+await openGroupPanel(G);
+await G.page.waitForSelector('#leaderTools:not([hidden])',{timeout:10000});
+ok(true,'a co-leader gets the leader settings');
+await A.page.click('#memberList li:has-text("Dave") button:has-text("Remove")');
+await B.page.waitForSelector('#start:not([hidden])',{timeout:15000});
+ok((await txt(B,'#startNote')).includes("You're no longer in Elk camp 2026"),'removed hunter is told plainly and the map closes');
+await shot(B,'11-removed');
+const davesSpot=await db('groups/'+g+'/locations');
+ok(!Object.values(davesSpot||{}).some(x=>x.name==='Dave'),"removed hunter's spot is deleted");
+await B.page.goto(link2); await B.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000});
+await B.page.waitForFunction(()=>document.getElementById('joinTitle').textContent.includes('invited'),null,{timeout:15000});
+await B.page.click('#joinGo');
+await B.page.waitForFunction(()=>document.getElementById('joinError').textContent.length>10&&!document.getElementById('joinError').textContent.includes('Joining'),null,{timeout:15000});
+ok(await visible(B,'#join') && !(await visible(B,'#app')),'removed phone cannot rejoin with the link: '+(await txt(B,'#joinError')));
+
+// 12. Reset the invite link.
+await A.page.click('#resetInvite');
+await A.page.waitForFunction(old=>document.getElementById('inviteLink').value!==old,link2,{timeout:10000});
+const link3=await A.page.locator('#inviteLink').inputValue();
+const I=await user('ivy',{latitude:45,longitude:-115,accuracy:6},{url:link2});
+await I.page.waitForFunction(()=>document.getElementById('joinTitle').textContent.includes('no longer works'),null,{timeout:15000}).catch(()=>{});
+ok((await txt(I,'#joinTitle')).includes('no longer works'),'old link stops working after a reset');
+await I.page.goto(link3); await I.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000});
+await I.page.waitForFunction(()=>document.getElementById('joinTitle').textContent.includes('invited'),null,{timeout:15000});
+ok((await txt(I,'#joinWho')).includes('TJ') && (await txt(I,'#joinWho')).includes('Gail'),'new link works and still lists the members');
+await I.page.fill('#joinName','Ivy'); await I.page.click('#joinGo'); await waitMap(I);
+ok((await txt(G,'#groupLabel'))==='Elk camp 2026','people already in the group stay after a reset');
+
+// 13. Optional group password each time HuntLinq opens.
+await A.page.check('#lockToggle'); await A.page.fill('#lockPass','synthetic-lock-1'); await A.page.click('#lockSave');
+await A.page.waitForFunction(()=>document.getElementById('leaderStatus').textContent.startsWith('Saved'),null,{timeout:10000});
+ok(await visible(A,'#app'),'leader keeps the map after turning on the group password');
+await I.page.reload(); await I.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000});
+await I.page.waitForSelector('#unlock:not([hidden])',{timeout:15000});
+ok((await txt(I,'#unlockTitle'))==='Elk camp 2026' && (await I.page.locator('#unlockName').inputValue())==='Ivy','returning member is asked for the group password, name filled in');
+await shot(I,'12-group-password');
+await I.page.fill('#unlockPass','wrong-one'); await I.page.click('#unlockGo');
+await I.page.waitForFunction(()=>document.getElementById('unlockError').textContent.includes('Incorrect'),null,{timeout:10000}).catch(()=>{});
+ok((await txt(I,'#unlockError')).includes('Incorrect'),'wrong group password is refused');
+await I.page.fill('#unlockPass','synthetic-lock-1'); await I.page.click('#unlockGo'); await waitMap(I);
+ok(true,'right group password opens the map');
+ok(!(await I.page.evaluate(()=>Object.values(localStorage).some(v=>v.includes('synthetic-lock-1')))),'group password is never kept on the phone');
+await A.page.uncheck('#lockToggle');
+await A.page.waitForFunction(()=>document.getElementById('leaderStatus').textContent.includes('no longer need'),null,{timeout:10000});
+await I.page.reload(); await I.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000}); await waitMap(I);
+ok(!(await visible(I,'#unlock')),'with the group password off, the map opens straight away again');
 log('FAILURES',fails,'· screenshots in',shotDir);
 await browser.close(); server.close(); process.exit(fails?1:0);

@@ -58,6 +58,13 @@ try {
   await until(`!download.disabled&&document.getElementById('status').textContent.startsWith('${state} · Outlined')`);
  }
  console.log('PASS Montana and Oregon areas can be selected for offline topo');
+ const smallEstimate=await js("Number(document.getElementById('status').textContent.match(/Estimated (\\d+) MB/)[1])");
+ await js("areaSize.value='large';areaSize.dispatchEvent(new Event('change'));true");
+ await until("document.getElementById('status').textContent.includes('about 6 miles across')");
+ assert(await js("Number(document.getElementById('status').textContent.match(/Estimated (\\d+) MB/)[1])")>smallEstimate*3);
+ await js("areaSize.value='small';areaSize.dispatchEvent(new Event('change'));true");
+ await until("document.getElementById('status').textContent.includes('about 3 miles across')");
+ console.log('PASS larger 6-mile offline area can be chosen');
  assert(await js("!locate.hidden&&stopGps.hidden"));
  await call('Browser.grantPermissions',{origin:new URL(base).origin,permissions:['geolocation']},null);
  await call('Emulation.setGeolocationOverride',{latitude:43.615,longitude:-116.202,accuracy:8});

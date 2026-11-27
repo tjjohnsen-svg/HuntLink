@@ -153,7 +153,47 @@ export async function downloadPublicLand(bounds, signal) {
     if (bytes>12*1048576) throw Error('Parcel data too large');
     features.push(...data.features);
   }
-  return {features,bytes};
+  // Trim parcels to the saved area so the offline map doesn't draw public land past the edge
+  // of the downloaded topo, and so the saved copy is smaller.
+  const box = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+  const clipped = features.map(feature => clipFeature(feature, box)).filter(Boolean);
+  return {features: clipped, bytes: new Blob([JSON.stringify(clipped)]).size};
+}
+
+// Cut a polygon ring to a rectangle [west, south, east, north] (Sutherland-Hodgman).
+function clipRing(ring, [w, s, e, n]) {
+  const at = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const edges = [
+    [p => p[0] >= w, (a, b) => at(a, b, (w - a[0]) / (b[0] - a[0]))],
+    [p => p[0] <= e, (a, b) => at(a, b, (e - a[0]) / (b[0] - a[0]))],
+    [p => p[1] >= s, (a, b) => at(a, b, (s - a[1]) / (b[1] - a[1]))],
+    [p => p[1] <= n, (a, b) => at(a, b, (n - a[1]) / (b[1] - a[1]))]
+  ];
+  let points = ring.slice(0, -1);
+  for (const [inside, cut] of edges) {
+    const input = points;
+    points = [];
+    let previous = input[input.length - 1];
+    for (const current of input) {
+      if (inside(current)) {
+        if (!inside(previous)) points.push(cut(previous, current));
+        points.push(current);
+      } else if (inside(previous)) points.push(cut(previous, current));
+      previous = current;
+    }
+    if (points.length < 3) return null;
+  }
+  return [...points.map(p => p.map(v => Math.round(v * 1e6) / 1e6)), points[0].map(v => Math.round(v * 1e6) / 1e6)];
+}
+export function clipFeature(feature, box) {
+  const polygons = feature.geometry.type === 'Polygon' ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+  const kept = [];
+  for (const [outer, ...holes] of polygons) {
+    const ring = clipRing(outer, box);
+    if (ring) kept.push([ring, ...holes.map(hole => clipRing(hole, box)).filter(Boolean)]);
+  }
+  if (!kept.length) return null;
+  return {...feature, geometry: kept.length === 1 ? {type: 'Polygon', coordinates: kept[0]} : {type: 'MultiPolygon', coordinates: kept}};
 }
 
 export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {

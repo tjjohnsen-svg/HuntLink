@@ -96,9 +96,12 @@ function stateAt(point) {
     return polygons.some(([outer,...holes]) => insideRing(point,outer) && !holes.some(ring => insideRing(point,ring)));
   })?.properties.NAME;
 }
+// Area sizes: about 3 miles (5 km, roughly 4 MB) or 6 miles (10 km, roughly 15 MB) across.
+const SIZES = {small:{meters:5000,label:'3 miles'}, large:{meters:10000,label:'6 miles'}};
+const areaSize = () => SIZES[$('areaSize').value] || SIZES.small;
 function createPlan(center,state) {
-  // A 5 km square, measured at the selected latitude.
-  const box = center.toBounds(5000);
+  // A square measured at the selected latitude.
+  const box = center.toBounds(areaSize().meters);
   const tiles = [];
   for (let z=12;z<=16;z++) {
     const first = map.project(box.getNorthWest(),z).divideBy(256).floor();
@@ -120,7 +123,7 @@ function updatePlan() {
   footprint.setBounds(plan.bounds).addTo(map);
   const estimate = Math.ceil(plan.tiles.length*35/1024);
   const same = pending && samePlan(pending,plan);
-  $('status').textContent = state+' · Outlined area is about 3 miles across. Estimated '+estimate+' MB. '
+  $('status').textContent = state+' · Outlined area is about '+areaSize().label+' across. Estimated '+estimate+' MB. '
     +(same?'An interrupted download of this area will resume.':areas.length?'Saved as a new area ('+areas.length+' already on this device).':'');
 }
 function controls() {
@@ -135,6 +138,7 @@ function controls() {
   $('stopGps').hidden = watch===null;
   $('progress').hidden = !controller;
   $('landOption').hidden = !!controller || (viewing && !area?.publicLand?.length);
+  $('sizeOption').hidden = viewing || !!controller;
   $('landNote').hidden = !viewing;
 }
 function stopGPS() {
@@ -343,6 +347,7 @@ $('landToggle').onchange=()=>{
   }
 };
 $('groupToggle').onchange=showGroup;
+$('areaSize').onchange=updatePlan;
 $('cancel').onclick=()=>controller?.abort();
 $('download').onclick=()=>download();
 $('choose').onclick=choose;

@@ -160,6 +160,9 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
   // Idaho, Washington, Montana and Oregon.
   const coverage = L.latLngBounds([41.98, -124.9], [49.01, -104.03]);
   const limit = 150, maxCached = 1500;
+  // At zoom 10 and 11 (scouting a wider area) only large federal and state parcels load, which keeps
+  // each download about the same size as a closer view.
+  const minZoom = 10, scoutBelow = 12;
   let request;
   let timer;
   let pending = null; // The area being loaded.
@@ -182,7 +185,8 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
   const messages = {
     partial: 'Partial public land coverage. Zoom in for more detail. Verify hunting access locally.',
     shown: 'Outlined parcels are mapped public land. Tap one for details. Verify hunting access locally.',
-    none: 'No public parcels mapped here by USGS. Ownership and access may vary.'
+    none: 'No public parcels mapped here by USGS. Ownership and access may vary.',
+    scout: 'Zoomed out: only large federal and state parcels (1 square mile or more) are shown. Zoom in for all parcels.'
   };
 
   function stop() {
@@ -196,7 +200,9 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
     stop();
     notice.hidden = true;
   }
-  const covering = (bounds, zoom) => areas.find(a => a.box.contains(bounds) && (a.partial ? a.zoom === zoom : a.zoom >= zoom - 1));
+  // An area loaded zoomed out only has the large parcels, so it can't stand in for a closer view.
+  const covering = (bounds, zoom) => areas.find(a => a.box.contains(bounds) && (!a.scout || zoom < scoutBelow)
+    && (a.partial ? a.zoom === zoom : a.zoom >= zoom - 1));
   const parcelId = feature => feature.id ?? feature.properties?.OBJECTID ?? Symbol('parcel');
 
   function store(features, zoom) {
@@ -239,10 +245,11 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
       notice.textContent = 'Outside public-land coverage. HuntLinq maps public land in Idaho, Washington, Montana and Oregon only.';
       return;
     }
-    if (zoom < 12) {
+    if (zoom < minZoom) {
       notice.textContent = 'Zoom in to see mapped public land.';
       return;
     }
+    const scout = zoom < scoutBelow;
     // Parcels already on screen stay visible while the new area loads.
     notice.textContent = 'Loading public land…';
     // Request an outward-rounded map area with some margin, so small pans and panel resizes reuse it.
@@ -250,11 +257,11 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
     const padded = bounds.pad(0.25);
     const box = [Math.floor(padded.getWest()*100), Math.floor(padded.getSouth()*100),
       Math.ceil(padded.getEast()*100), Math.ceil(padded.getNorth()*100)].map(v => v/100);
-    const target = {box: L.latLngBounds([box[1], box[0]], [box[3], box[2]]), zoom};
+    const target = {box: L.latLngBounds([box[1], box[0]], [box[3], box[2]]), zoom, scout};
     const pixel = 360 / (256 * 2 ** zoom);
     pending = target;
     const query = new URLSearchParams({
-      f: 'geojson', where: filter, outFields: fields + ',OBJECTID', geometry: box.join(','),
+      f: 'geojson', where: scout ? filter + " AND Own_Type IN ('FED','STAT') AND GIS_Acres >= 640" : filter, outFields: fields + ',OBJECTID', geometry: box.join(','),
       geometryType: 'esriGeometryEnvelope', spatialRel: 'esriSpatialRelIntersects',
       inSR: '4326', outSR: '4326', returnGeometry: 'true', resultRecordCount: String(limit),
       // If a view still has more parcels than the limit, the largest ones come first.
@@ -275,7 +282,7 @@ export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
         if (!Array.isArray(data.features) || data.type !== 'FeatureCollection') throw Error();
         store(data.features, zoom);
         const partial = data.features.length >= limit || !!data.exceededTransferLimit || !!data.properties?.exceededTransferLimit;
-        const message = partial ? messages.partial : data.features.length ? messages.shown : messages.none;
+        const message = partial ? messages.partial : !data.features.length ? messages.none : scout ? messages.scout : messages.shown;
         areas.push({...target, partial, message});
         if (areas.length > 40) areas.shift();
         notice.textContent = message;

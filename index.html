@@ -84,7 +84,9 @@ const topo=L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USG
 const map=L.map('map',{center:[48,-116.85],zoom:12,layers:[aerial],maxZoom:19});
 const layers=L.control.layers({Topo:topo,'Satellite / aerial':aerial},{},{collapsed:false}).addTo(map);
 // Keep the parcel toggle independent of Leaflet's basemap picker.
-const publicLand=addPublicLand(map,layers,L,$('landNotice'));
+const publicLand=addPublicLand(map,layers,L,$('landNotice'),'satellite');
+// Parcel colors follow the basemap so they stay readable on both.
+map.on('baselayerchange',event=>publicLand.setBasemap(event.layer===aerial?'satellite':'topo'));
 layers.removeLayer(publicLand);
 const parcelButton=$('publicLandTool');
 publicLand.on('add remove',event=>{

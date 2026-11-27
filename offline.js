@@ -1,4 +1,4 @@
-import { createParcelLayer, downloadPublicLand } from './public-land.js';
+import { createParcelLayer, downloadPublicLand, landLegend } from './public-land.js';
 import { setupWaypoints } from './waypoints.js';
 // The region outlines are generalized Census TIGERweb State_County polygons.
 const $ = id => document.getElementById(id);
@@ -208,7 +208,8 @@ function showSaved() {
     parcels.addData({type:'FeatureCollection',features:area.publicLand}).addTo(map);
     $('landNote').textContent=area.publicLand.some(f=>!f.properties?.Pub_Access)
       ? 'USGS public land, saved before access details were added. Download this area again to see which land is open, restricted or closed.'
-      : 'USGS public land · Tap a shaded parcel for details. Verify hunting access locally.';
+      : 'USGS public land · Tap a parcel for details. Verify hunting access locally.';
+    $('landNote').append(landLegend('topo'));
   } else {
     $('landNote').textContent=area.publicLand ? 'USGS returned no mapped public parcels in this area.'
       : 'Topo only. Download this area again with public-land boundaries to see them offline.';

@@ -39,14 +39,14 @@ map.setView([46.5,-116.5],13,{animate:false});
 parcelButtonInNav.click();
 await waitReal(1500);
 ok(parcelCalls===1&&parcelPaths()===6,'public land loads once: '+parcelCalls+' requests, '+parcelPaths()+' parcels');
-$('landNotice').textContent+=' Extra text that wraps onto more lines and changes the panel height under the map.';
+const extraLine=document.createElement('div');extraLine.textContent='Extra text that wraps onto more lines and changes the panel height under the map.';$('landNotice').append(extraLine);
 map.invalidateSize();
 await waitReal(1500);
 ok(parcelCalls===1&&parcelPaths()===6,'panel height change does not reload public land: '+parcelCalls+' requests');
 map.panBy([40,0],{animate:false});
 ok(parcelPaths()===6,'parcels stay visible right after a small pan');
 await waitReal(800);
-ok(parcelCalls===1,'small pan reuses the loaded area');
+ok(parcelCalls===1,'small pan reuses the loaded area');extraLine.remove();
 const parcelWhere=parcelUrl.searchParams.get('where')||'';
 ok(parcelUrl.searchParams.get('orderByFields')==='GIS_Acres DESC'&&parcelWhere.includes("Own_Type IN ('FED','STAT') OR")&&parcelWhere.includes('SCHOOL'),
  'largest parcels first; small city and school parcels left out (QA H2)');
@@ -54,6 +54,12 @@ ok(parcelWhere.includes("State_Nm IN ('ID','WA','MT','OR')"),'Montana and Oregon
 ok((parcelUrl.searchParams.get('outFields')||'').split(',').includes('OBJECTID'),'parcel IDs requested so loaded parcels can be reused');
 const pathsByAccess=[...document.querySelectorAll('.leaflet-publicLand-pane path')].map(e=>[e.getAttribute('stroke'),e.getAttribute('stroke-dasharray')||'']);
 ok(new Set(pathsByAccess.map(String)).size===3&&pathsByAccess[2][1]&&pathsByAccess[1][1],'open, restricted and closed land are drawn differently (QA H3)');
+ok(['Open','Restricted','Closed','Unknown'].every(w=>$('landNotice').querySelector('.land-legend')?.textContent.includes(w)),'public-land legend shown');
+baseChoices[1].click();
+const satStroke=document.querySelector('.leaflet-publicLand-pane path').getAttribute('stroke');
+baseChoices[0].click();
+const topoStroke=document.querySelector('.leaflet-publicLand-pane path').getAttribute('stroke');
+ok(satStroke==='#ffe600'&&topoStroke==='#6a1b9a','open land is yellow on satellite and purple on topo: '+satStroke+' / '+topoStroke);
 const closedInfo=parcelPopup(synthParcels().features[2].properties).textContent;
 ok(closedInfo.includes('Synthetic Closed Parcel')&&closedInfo.includes('Closed to the public')&&closedInfo.includes('Owner: State')
  &&closedInfo.includes('State Department of Lands · Synthetic State Office')&&closedInfo.includes('from 2013'),'parcel popup shows access, owner, readable manager and data year: '+closedInfo);
@@ -63,7 +69,7 @@ const home=map.getCenter();
 map.setView([46.9,-116.1],13,{animate:false});await waitReal(800);
 ok(parcelCalls===2&&parcelPaths()===12,'a new area loads and earlier parcels are kept: '+parcelCalls+' requests, '+parcelPaths()+' parcels');
 map.setView(home,13,{animate:false});await waitReal(800);
-ok(parcelCalls===2&&$('landNotice').textContent.includes('Tap for details'),'panning back reuses the earlier area (QA H5)');
+ok(parcelCalls===2&&$('landNotice').textContent.includes('Tap one for details'),'panning back reuses the earlier area (QA H5)');
 parcelButtonInNav.click();parcelButtonInNav.click();await waitReal(800);
 ok(parcelCalls===2&&parcelPaths()===12,'turning public land off and on reuses loaded parcels');
 window.fetch=async()=>{parcelCalls++;throw TypeError('Failed to fetch');};

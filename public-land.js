@@ -34,14 +34,38 @@ function tidy(text) {
   return value && value === value.toUpperCase() && /[A-Z]{3}/.test(value)
     ? value.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()) : value;
 }
-export function parcelStyle(feature) {
+// Colors are chosen to stand out on each basemap and not be mistaken for the topo map's own green
+// woodland tint: purple on topo, bright yellow on satellite photos. Restricted, closed and unknown
+// access use dashed or dotted outlines so they read differently even in bright sun.
+const PALETTES = {
+  topo: {OA: '#6a1b9a', OAfill: '#ab47bc', RA: '#b35c00', XA: '#c62828', UK: '#546e7a'},
+  satellite: {OA: '#ffe600', OAfill: '#ffe600', RA: '#ff9800', XA: '#ff5252', UK: '#eceff1'}
+};
+export function parcelStyle(feature, basemap = 'topo') {
+  const c = PALETTES[basemap] || PALETTES.topo;
   switch (accessOf(feature?.properties)) {
-    case 'OA': return {color: '#275e41', fillColor: '#76ce88', fillOpacity: 0.32, weight: 2, dashArray: null};
-    case 'RA': return {color: '#b35c00', fillColor: '#ffb74d', fillOpacity: 0.2, weight: 3, dashArray: '8 5'};
+    case 'OA': return {color: c.OA, fillColor: c.OAfill, fillOpacity: basemap === 'satellite' ? 0.22 : 0.16, weight: 3, opacity: 1, dashArray: null};
+    case 'RA': return {color: c.RA, fillColor: c.RA, fillOpacity: 0.14, weight: 3, opacity: 1, dashArray: '9 5'};
     // Closed: outline only (a faint fill keeps it tappable).
-    case 'XA': return {color: '#c62828', fillColor: '#c62828', fillOpacity: 0.06, weight: 3, dashArray: '2 6'};
-    default: return {color: '#5f6b66', fillColor: '#b0bec5', fillOpacity: 0.15, weight: 2, dashArray: '6 4'};
+    case 'XA': return {color: c.XA, fillColor: c.XA, fillOpacity: 0.06, weight: 3.5, opacity: 1, dashArray: '2 6'};
+    default: return {color: c.UK, fillColor: c.UK, fillOpacity: 0.1, weight: 2.5, opacity: 1, dashArray: '6 4'};
   }
+}
+// A small legend that matches the current basemap's colors.
+export function landLegend(basemap = 'topo') {
+  const legend = document.createElement('div');
+  legend.className = 'land-legend';
+  for (const [code, label] of [['OA', 'Open'], ['RA', 'Restricted'], ['XA', 'Closed'], ['UK', 'Unknown']]) {
+    const item = document.createElement('span');
+    const swatch = document.createElement('i');
+    const style = parcelStyle({properties: {Pub_Access: code}}, basemap);
+    swatch.style.borderColor = style.color;
+    swatch.style.borderStyle = style.dashArray ? (code === 'XA' ? 'dotted' : 'dashed') : 'solid';
+    swatch.style.background = code === 'OA' ? style.fillColor + '66' : 'transparent';
+    item.append(swatch, document.createTextNode(label));
+    legend.append(item);
+  }
+  return legend;
 }
 export function parcelPopup(p = {}) {
   const content = document.createElement('div');
@@ -54,7 +78,8 @@ export function parcelPopup(p = {}) {
   const code = p.Mang_Name || p.WebServiceMangName;
   const agency = MANAGER[code] || tidy(code);
   const local = tidy(p.Loc_Mang);
-  const detail = local && !/^unknown$/i.test(local) && local !== code && local.toLowerCase() !== agency?.toLowerCase() ? local : '';
+  const detail = local && !/^unknown$/i.test(local) && local.toUpperCase() !== String(code).toUpperCase()
+    && local.toLowerCase() !== agency?.toLowerCase() ? local : '';
   line('Manager: ' + ([agency, detail].filter(Boolean).join(' · ') || 'Unlisted'));
   const year = /^(\d{4})/.exec(String(p.Src_Date ?? ''))?.[1];
   line('Source: USGS PAD-US 4.1' + (year ? ', boundary data from ' + year : '') + '.');
@@ -67,23 +92,35 @@ function addPopupStyle() {
   if (styled) return;
   styled = true;
   const style = document.createElement('style');
-  style.textContent = '.parcel-info{font:15px/1.4 system-ui,sans-serif;color:#192b23}.parcel-info strong{display:block;font-size:16px;margin-bottom:2px}'
+  style.textContent = '.land-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:2px 0 4px;font:600 13px system-ui,sans-serif}'
+    + '.land-legend span{display:inline-flex;align-items:center;gap:5px}.land-legend i{width:16px;height:12px;border:3px solid;border-radius:2px;background:#0000;box-sizing:border-box}'
+    + '.land-legend{background:#f4f6f3;color:#192b23;border-radius:6px;padding:4px 8px}'
+    + '.parcel-info{font:15px/1.4 system-ui,sans-serif;color:#192b23}.parcel-info strong{display:block;font-size:16px;margin-bottom:2px}'
     + '.parcel-access{font-weight:700}.access-XA{color:#b71c1c}.access-RA{color:#8a4500}.access-UK{color:#455a64}.access-OA{color:#1b5e20}';
   document.head.append(style);
 }
 
-export function createParcelLayer(map, L) {
+export function createParcelLayer(map, L, basemap = 'topo') {
   addPopupStyle();
   const pane = map.createPane('publicLand');
   pane.style.zIndex = 390; // Below hunter markers and GPS accuracy circles.
-  return L.geoJSON(null, {
+  const layer = L.geoJSON(null, {
     pane: 'publicLand',
     attribution: '<a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-web-services">USGS PAD-US</a>',
-    style: parcelStyle,
-    onEachFeature(feature, layer) {
-      layer.bindPopup(() => parcelPopup(feature.properties), {maxWidth: 280});
+    style: feature => parcelStyle(feature, layer.basemap),
+    onEachFeature(feature, parcel) {
+      parcel.bindPopup(() => parcelPopup(feature.properties), {maxWidth: 280});
     }
   });
+  layer.basemap = basemap;
+  // Restyle for the chosen basemap ('topo' or 'satellite').
+  layer.setBasemap = kind => {
+    layer.basemap = kind;
+    layer.setStyle(feature => parcelStyle(feature, kind));
+    layer.fire('basemap');
+    return layer;
+  };
+  return layer;
 }
 
 // Enumerate IDs first so a server result limit cannot silently truncate a saved area.
@@ -119,7 +156,7 @@ export async function downloadPublicLand(bounds, signal) {
   return {features,bytes};
 }
 
-export function addPublicLand(map, control, L, notice) {
+export function addPublicLand(map, control, L, noticeBox, basemap = 'topo') {
   // Idaho, Washington, Montana and Oregon.
   const coverage = L.latLngBounds([41.98, -124.9], [49.01, -104.03]);
   const limit = 150, maxCached = 1500;
@@ -131,13 +168,20 @@ export function addPublicLand(map, control, L, notice) {
   // instead of downloading again. Parcels are kept by ID, so overlapping areas don't duplicate.
   let areas = [];
   const cached = new Map();
-  const parcels = createParcelLayer(map,L);
+  const parcels = createParcelLayer(map, L, basemap);
+  // The notice holds a small legend and one status message.
+  const message = document.createElement('span');
+  const showLegend = () => noticeBox.replaceChildren(landLegend(parcels.basemap), message);
+  showLegend();
+  parcels.on('basemap', showLegend);
+  const notice = {set textContent(text) { message.textContent = text; }, get textContent() { return message.textContent; },
+    set hidden(value) { noticeBox.hidden = value; }, get hidden() { return noticeBox.hidden; }};
   let added = null;
   parcels.on('layeradd', event => { added = event.layer; });
   control.addOverlay(parcels, 'Public land · ID, WA, MT & OR');
   const messages = {
     partial: 'Partial public land coverage. Zoom in for more detail. Verify hunting access locally.',
-    shown: 'Green shading shows mapped public land. Tap for details. Verify hunting access locally.',
+    shown: 'Outlined parcels are mapped public land. Tap one for details. Verify hunting access locally.',
     none: 'No public parcels mapped here by USGS. Ownership and access may vary.'
   };
 

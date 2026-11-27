@@ -51,6 +51,7 @@ const parcelWhere=parcelUrl.searchParams.get('where')||'';
 ok(parcelUrl.searchParams.get('orderByFields')==='GIS_Acres DESC'&&parcelWhere.includes("Own_Type IN ('FED','STAT') OR")&&parcelWhere.includes('SCHOOL'),
  'largest parcels first; small city and school parcels left out (QA H2)');
 ok(parcelWhere.includes("State_Nm IN ('ID','WA','MT','OR')"),'Montana and Oregon public land included (QA H4)');
+ok(parcelUrl.searchParams.get('geometryPrecision')==='5','zoom 13 asks for 5 decimal places, not 6 (less data)');
 ok((parcelUrl.searchParams.get('outFields')||'').split(',').includes('OBJECTID'),'parcel IDs requested so loaded parcels can be reused');
 const pathsByAccess=[...document.querySelectorAll('.leaflet-publicLand-pane path')].map(e=>[e.getAttribute('stroke'),e.getAttribute('stroke-dasharray')||'']);
 ok(new Set(pathsByAccess.map(String)).size===3&&pathsByAccess[2][1]&&pathsByAccess[1][1],'open, restricted and closed land are drawn differently (QA H3)');

@@ -12,7 +12,7 @@ Run the commands from the repository root. The browser runner creates a fresh te
 
 Use `/usr/bin/python3 _qa/run.py` to run both browsers. On an X11 system with graphics issues, prefix the WebKit command with `env GDK_BACKEND=x11 WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 
-The group tests cover sign-in (including the name helper text and that the group password is never stored on the phone), voluntary sharing, GPS freshness, peer distance and direction, pause and resume, and leaving the group. The offline tests cover area selection, cached topo and public-land boundaries, private GPS, and waypoints. Chromium also exercises interrupted downloads and verifies that the previous map survives.
+The group tests cover the privacy page link, the Who can see you note in the Hunters list, the optional auto-stop sharing timer (it ends sharing on time and never resumes after it ends), sign-in (including the name helper text and that the group password is never stored on the phone), voluntary sharing, GPS freshness, peer distance and direction, pause and resume, and leaving the group. The offline tests cover area selection, cached topo and public-land boundaries, private GPS, and waypoints. Chromium also exercises interrupted downloads and verifies that the previous map survives.
 
 The rules test starts a local emulator with generated credentials. It exercises the current rules and legacy timestamp compatibility. Browser simulations do not verify physical-phone GPS reception or a live deployment.
 

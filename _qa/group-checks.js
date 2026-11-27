@@ -235,5 +235,21 @@ ok(!$('notice').hidden||localStorage.getItem('huntlinkTipSeen'),'tip shown until
 $('share').click();await flush();ok(!localStorage.getItem('huntlinkSharing')&&wakeReleases===releaseBase+1,'stop clears sharing intent and releases screen');
 $('share').click();sample();await flush();gpsError({code:1,message:'denied'});await flush();
 ok(!sharing&&$('status').textContent.includes('Start sharing'),'denied message names the button to tap');
+// Phase 0: privacy page link, who-can-see-me and the optional auto-stop timer.
+ok([...document.querySelectorAll('#login a')].some(a=>a.getAttribute('href')==='./privacy.html'&&a.textContent==='Privacy'),'login links to the privacy page');
+tick();ok($('whoSeesText').textContent.includes('nobody can see where you are')&&$('whoSeesText').textContent.includes('Sam Hill'),'who can see you explains no one sees you while not sharing: '+$('whoSeesText').textContent);
+ok($('sharingOptions').hidden,'sharing options stay hidden while not sharing, keeping the map tall');
+ok($('shareFor').value==='0'&&$('shareFor').options[0].textContent.includes('until I stop'),'auto-stop defaults to never');
+$('shareFor').value='2';$('shareFor').dispatchEvent(new Event('change'));
+ok(localStorage.getItem('huntlinkShareFor')==='2','auto-stop choice remembered on this phone');
+$('share').click();sample();await flush();
+ok(sharing&&$('statusDetail').textContent.includes('Stops automatically at'),'status shows when sharing will stop');
+ok(!$('sharingOptions').hidden&&$('sharingOptions').contains($('shareFor')),'auto-stop shows with the sharing options while sharing');
+ok(JSON.parse(localStorage.getItem('huntlinkSharing')).until===now+2*3600000,'sharing intent keeps the stop time for a restart');
+tick();ok($('whoSeesText').textContent.includes('You are sharing now'),'who can see you says you are sharing');
+now+=2*3600000-1000;tick();await flush();ok(sharing,'still sharing just before the timer ends');
+now+=2000;tick();await flush();ok(!sharing&&!running&&$('status').textContent.includes('Your sharing timer ended')&&removals.at(-1)==='locations/synthetic','timer stops sharing and removes the shared spot');
+local.set('huntlinkSharing',{uid:'synthetic',at:now,until:now-1});ok(!sharingToResume(),'an ended timer never resumes sharing after a restart');
+local.clear('huntlinkSharing');$('shareFor').value='0';$('shareFor').dispatchEvent(new Event('change'));
 $('logout').click();await flush();ok(!localStorage.getItem('huntlinkLastKnown')&&!localStorage.getItem('huntlinkSharing'),'leave clears device caches');
 document.title='PASS '+innerWidth+'x'+innerHeight+' map '+size.x+'x'+size.y+' '+answers.length+' checks';document.body.textContent=document.title;

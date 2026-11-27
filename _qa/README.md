@@ -12,13 +12,13 @@ Run the commands from the repository root. The browser runner creates a fresh te
 
 Use `/usr/bin/python3 _qa/run.py` to run both browsers. On an X11 system with graphics issues, prefix the WebKit command with `env GDK_BACKEND=x11 WEBKIT_DISABLE_COMPOSITING_MODE=1`.
 
-The group tests cover sign-in, voluntary sharing, GPS freshness, peer distance and direction, pause and resume, and leaving the group. The offline tests cover area selection, cached topo and public-land boundaries, private GPS, and waypoints. Chromium also exercises interrupted downloads and verifies that the previous map survives.
+The group tests cover sign-in (including the name helper text and that the group password is never stored on the phone), voluntary sharing, GPS freshness, peer distance and direction, pause and resume, and leaving the group. The offline tests cover area selection, cached topo and public-land boundaries, private GPS, and waypoints. Chromium also exercises interrupted downloads and verifies that the previous map survives.
 
 The rules test starts a local emulator with generated credentials. It exercises the current rules and legacy timestamp compatibility. Browser simulations do not verify physical-phone GPS reception or a live deployment.
 
 The group tests also cover the stationary heartbeat, weak-GPS handling during timeouts, the single status bar, hunter colors, initials and distances, in-place list updates, last-known spots kept for 6 hours, the on-device cache for the offline map, and the kept-awake screen. The offline tests also cover several saved areas, tile retries, resuming an interrupted download, the group's cached spots on the offline map, and opening a pack saved by the earlier single-area version.
 
-The emulator test copies the checkout to a temporary folder and points the copy at `127.0.0.1`, so it never writes to the production database. It runs two to five simulated phones and checks bundled Leaflet and Firebase with the CDNs blocked, the heartbeat for a hunter who isn't moving, resuming sharing after a reload, last-known spots after a hunter loses signal, the 6-hour cleanup rule, GPS timeouts, opening without signal, a changed group password, and the load-failure message.
+The emulator test copies the checkout to a temporary folder and points the copy at `127.0.0.1`, so it never writes to the production database. It runs two to five simulated phones and checks bundled Leaflet and Firebase with the CDNs blocked, the heartbeat for a hunter who isn't moving, returning after a reload (login again with the name filled in, membership dropped until the password is entered, sharing paused until then and resumed after), last-known spots after a hunter loses signal, the 6-hour cleanup rule, GPS timeouts, opening without signal (login points to the offline maps, which open without the password), a changed group password, leaving the group, and the load-failure message.
 
 If `google-chrome --dump-dom` stalls in a headless container, load `group.html` from the prepared folder in Playwright and read the page title instead.
 

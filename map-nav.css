@@ -69,3 +69,19 @@
 .ask-feedback:empty { display: none; }
 #askSheet svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: middle; }
 .question-line { filter: drop-shadow(0 0 1.5px white); }
+/* Short phones (such as an iPhone SE): give the map more of the screen. The panel scrolls. */
+@media (max-height: 740px) {
+  #app > header, .offline-map > header { padding-top: 6px; padding-bottom: 6px; }
+  #app > header h1, .offline-map > header h1 { font-size: 19px; }
+  #app > #panel, .offline-map > section { max-height: 30dvh; padding-top: 6px; gap: 6px; }
+  .map-tools :is(button, a) { min-height: 48px; gap: 2px; }
+  #app #status { font-size: 15px; }
+  .leaflet-control-attribution { font-size: 10px; }
+}
+
+#map { isolation: isolate; }
+#map .leaflet-bottom { bottom: var(--question-clearance, 0px); }
+@media (max-width: 390px) {
+  #askSheet { padding-inline: 6px; }
+  #askSheet input { padding-inline: 4px; }
+}

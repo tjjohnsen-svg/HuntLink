@@ -1,4 +1,4 @@
-import { createParcelLayer, downloadPublicLand } from './public-land.js';
+import { createParcelLayer, downloadPublicLand, landLegend } from './public-land.js';
 import { setupQuestions, cachedHunters, cachedPeople } from './good-shit.js';
 import { setupWaypoints } from './waypoints.js';
 // The region outlines are generalized Census TIGERweb State_County polygons.
@@ -112,9 +112,12 @@ function stateAt(point) {
     return polygons.some(([outer,...holes]) => insideRing(point,outer) && !holes.some(ring => insideRing(point,ring)));
   })?.properties.NAME;
 }
+// Area sizes: about 3 miles (5 km, roughly 4 MB) or 6 miles (10 km, roughly 15 MB) across.
+const SIZES = {small:{meters:5000,label:'3 miles'}, large:{meters:10000,label:'6 miles'}};
+const areaSize = () => SIZES[$('areaSize').value] || SIZES.small;
 function createPlan(center,state) {
-  // A 5 km square, measured at the selected latitude.
-  const box = center.toBounds(5000);
+  // A square measured at the selected latitude.
+  const box = center.toBounds(areaSize().meters);
   const tiles = [];
   for (let z=12;z<=16;z++) {
     const first = map.project(box.getNorthWest(),z).divideBy(256).floor();
@@ -130,13 +133,13 @@ function updatePlan() {
   $('download').disabled = !plan;
   if (!plan) {
     footprint.remove();
-    $('status').textContent = navigator.onLine ? 'Pan to an area in Idaho or Washington and zoom in to select it.' : 'Connect to the internet to select and download a topo area.';
+    $('status').textContent = navigator.onLine ? 'Pan to an area in Idaho, Washington, Montana or Oregon and zoom in to select it.' : 'Connect to the internet to select and download a topo area.';
     return;
   }
   footprint.setBounds(plan.bounds).addTo(map);
   const estimate = Math.ceil(plan.tiles.length*35/1024);
   const same = pending && samePlan(pending,plan);
-  $('status').textContent = state+' · Outlined area is about 3 miles across. Estimated '+estimate+' MB. '
+  $('status').textContent = state+' · Outlined area is about '+areaSize().label+' across. Estimated '+estimate+' MB. '
     +(same?'An interrupted download of this area will resume.':areas.length?'Saved as a new area ('+areas.length+' already on this device).':'');
 }
 function controls() {
@@ -151,6 +154,7 @@ function controls() {
   $('stopGps').hidden = watch===null;
   $('progress').hidden = !controller;
   $('landOption').hidden = !!controller || (viewing && !area?.publicLand?.length);
+  $('sizeOption').hidden = viewing || !!controller;
   $('landNote').hidden = !viewing;
 }
 function stopGPS() {
@@ -224,7 +228,10 @@ function showSaved() {
   $('landLabel').textContent='Show saved public land';
   if (area.publicLand?.length) {
     parcels.addData({type:'FeatureCollection',features:area.publicLand}).addTo(map);
-    $('landNote').textContent='USGS public land · Tap a shaded parcel for details. Verify hunting access locally.';
+    $('landNote').textContent=area.publicLand.some(f=>!f.properties?.Pub_Access)
+      ? 'USGS public land, saved before access details were added. Download this area again to see which land is open, restricted or closed.'
+      : 'USGS public land · Tap a parcel for details. Verify hunting access locally.';
+    $('landNote').append(landLegend('topo'));
   } else {
     $('landNote').textContent=area.publicLand ? 'USGS returned no mapped public parcels in this area.'
       : 'Topo only. Download this area again with public-land boundaries to see them offline.';
@@ -359,6 +366,7 @@ $('landToggle').onchange=()=>{
   }
 };
 $('groupToggle').onchange=showGroup;
+$('areaSize').onchange=updatePlan;
 $('cancel').onclick=()=>controller?.abort();
 $('download').onclick=()=>download();
 $('choose').onclick=choose;

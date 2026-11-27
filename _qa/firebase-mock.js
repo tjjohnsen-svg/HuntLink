@@ -2,6 +2,7 @@ let removeError=null, deferredWrite=null, failWrite=false, lagWrite=false;
 let now=1000000, tick, gps, gpsError, running=false, arms=0, records=[], listeners={}, removals=[], events=[], delayDelete, held=false;
 const answers=[], ok=(v,label)=>{if(!v)throw Error(label);answers.push(label)}, flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve()};
 Date.now=()=>now;
+function advanceTime(ms){now+=ms;}
 const setInterval=fn=>tick=fn, app={}, getAuth=()=>({authStateReady:async()=>{}}),getDatabase=()=>({}),ref=(_,s)=>s;
 const signInAnonymously=async a=>a.currentUser={uid:'synthetic'},signOut=async a=>a.currentUser=null;
 const set=async(path,v)=>{if(path.startsWith('members/')&&v!=='test-only')throw Object.assign(Error(),{code:'PERMISSION_DENIED'});if(path.startsWith('locations/')){if(failWrite)throw Error('test write'); records.push(v); if(lagWrite)await new Promise(r=>deferredWrite=r)}};

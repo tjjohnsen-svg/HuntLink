@@ -13,7 +13,7 @@
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#192b23;color:#fff;font:16px system-ui,sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column}
 header,section{padding:10px 14px}header,.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}h1{font-size:21px;margin:0}header a{margin-left:auto;color:#daf5d9}#map{flex:1;min-height:120px;background:#45584f}
 section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;overflow:auto}p{margin:4px 0 8px}button{padding:10px 12px;border:0;border-radius:8px;background:#e8eee9;color:#192b23;font:600 15px system-ui;cursor:pointer}button.primary{background:#c7e79a}button:disabled{opacity:.55}#status,#gps{font-size:14px}progress{width:100%}
-#areaPick,#groupOption{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0;font-size:15px}#areaList{font:inherit;padding:8px;max-width:100%}#groupOption input{width:22px;height:22px}#waypoints{margin:8px 0}#waypoints summary{cursor:pointer;padding:8px 0;font-weight:650}#waypoints select{font:inherit;max-width:100%;padding:8px;margin:6px 0}#waypointHint,#returnInfo{font-size:14px}#returnInfo:empty{display:none}
+#areaPick,#groupOption,#sizeOption{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0;font-size:15px}#areaList,#areaSize{font:inherit;padding:8px;max-width:100%}#groupOption input{width:22px;height:22px}#waypoints{margin:8px 0}#waypoints summary{cursor:pointer;padding:8px 0;font-weight:650}#waypoints select{font:inherit;max-width:100%;padding:8px;margin:6px 0}#waypointHint,#returnInfo{font-size:14px}#returnInfo:empty{display:none}
 </style>
 <link rel="stylesheet" href="./map-nav.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
@@ -37,6 +37,7 @@ section{padding-bottom:max(12px,env(safe-area-inset-bottom));max-height:50vh;ove
 <div id="map" aria-label="Topographic map"></div>
 <section>
 <p id="status" role="status">Opening maps…</p>
+<label id="sizeOption" hidden>Area size <select id="areaSize"><option value="small" selected>About 3 miles across</option><option value="large">About 6 miles across (bigger download)</option></select></label>
 <label id="landOption" hidden><input id="landToggle" type="checkbox" checked> <span id="landLabel">Include public-land boundaries</span></label>
 <p id="landNote" hidden></p>
 <label id="areaPick" hidden>Saved areas <select id="areaList"></select></label>

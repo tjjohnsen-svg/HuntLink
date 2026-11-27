@@ -196,10 +196,12 @@ export function setupQuestions({map, people, ownFix, findFix, releaseFix, waitin
     const gap = vp ? Math.max(0,rect.bottom-vp.offsetTop-vp.height) : 0;
     sheet.style.setProperty('--keyboard-gap',gap+'px');
     sheet.style.setProperty('--visible-height',Math.max(0,rect.height-gap)+'px');
+    map.getContainer().style.setProperty('--question-clearance',(sheet.offsetHeight+gap+3)+'px');
   }
   function close() {
     if (sheet.hidden) return;
     window.clearInterval(refreshTimer);
+    map.getContainer().style.removeProperty('--question-clearance');
     sheet.hidden=true; nav.setAttribute('aria-expanded','false'); clearLine(); stopVoice(); releaseFix();
     places=[]; selected=null; choices=[]; view='suggest'; input.value=''; feedback.textContent=''; list.replaceChildren();
   }
@@ -212,7 +214,9 @@ export function setupQuestions({map, people, ownFix, findFix, releaseFix, waitin
   window.addEventListener('pagehide',close);
   window.addEventListener('focus',()=>{if (!sheet.hidden) placeLoad=loadPlaces();});
   window.addEventListener('waypoints-changed',()=>{if (!sheet.hidden) placeLoad=loadPlaces();});
-  new ResizeObserver(layout).observe(map.getContainer());
+  const sizeObserver = new ResizeObserver(layout);
+  sizeObserver.observe(map.getContainer());
+  sizeObserver.observe(sheet);
   window.visualViewport?.addEventListener('resize',layout);
   window.visualViewport?.addEventListener('scroll',layout);
   return {render,close,needsFix:()=>!sheet.hidden && (view==='single' || view==='group')};

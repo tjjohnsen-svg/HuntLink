@@ -198,7 +198,7 @@ await G.page.reload(); await G.page.waitForFunction(()=>window.huntlinkReady,nul
 ok(await visible(G,'#waiting'),'request survives closing and reopening the app');
 await A.page.waitForFunction(()=>document.getElementById('pendingList').textContent.includes('Gail'),null,{timeout:10000});
 ok(await visible(A,'#pendingBox'),'leader sees Gail waiting');
-await shot(A,'10-waiting-to-join');
+await A.page.locator('#pendingBox').scrollIntoViewIfNeeded(); await shot(A,'10-waiting-to-join');
 await A.page.click('#pendingList button.primary');
 await waitMap(G);
 ok((await txt(G,'#groupLabel'))==='Elk camp 2026','Let in opens the map on the requester phone');

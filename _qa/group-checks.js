@@ -62,6 +62,7 @@ const satStroke=document.querySelector('.leaflet-publicLand-pane path').getAttri
 baseChoices[0].click();
 const topoStroke=document.querySelector('.leaflet-publicLand-pane path').getAttribute('stroke');
 ok(satStroke==='#ffe600'&&topoStroke==='#6a1b9a','open land is yellow on satellite and purple on topo: '+satStroke+' / '+topoStroke);
+ok(PALETTE.length===8&&PALETTE.every(c=>!['#ffe600','#6a1b9a','#fdd835','#7cb342','#8e24aa'].includes(c)),'hunter colors avoid the public-land yellow, green and purple');
 const closedInfo=parcelPopup(synthParcels().features[2].properties).textContent;
 ok(closedInfo.includes('Synthetic Closed Parcel')&&closedInfo.includes('Closed to the public')&&closedInfo.includes('Owner: State')
  &&closedInfo.includes('State Department of Lands · Synthetic State Office')&&closedInfo.includes('from 2013'),'parcel popup shows access, owner, readable manager and data year: '+closedInfo);

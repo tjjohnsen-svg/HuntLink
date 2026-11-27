@@ -170,7 +170,8 @@ function bearingText(p){
  return 'Est. '+yards.toLocaleString()+' yd · '+(meters<=uncertainty?'direction uncertain within GPS accuracy':compassDirection(fix,p)+' (true north)');
 }
 // Distinct colors (never the blue used for "You") and initials make hunters easy to tell apart.
-const PALETTE=['#e53935','#fb8c00','#fdd835','#d81b60','#8e24aa','#00897b','#7cb342','#a1887f'];
+// No yellow, green or purple, which the public-land outlines use on the satellite and topo maps.
+const PALETTE=['#e53935','#ef6c00','#d81b60','#00838f','#6d4c41','#37474f','#283593','#880e4f'];
 function colorFor(id){let h=0;for(const c of String(id))h=(h*31+c.charCodeAt(0))>>>0;return PALETTE[h%PALETTE.length];}
 function initials(n){const w=String(n||'').match(/[\p{L}\p{N}]+/gu)||['?'];return (w.length>1?w[0][0]+w[1][0]:w[0].slice(0,2)).toUpperCase();}
 function closeDetails(){

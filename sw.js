@@ -1,7 +1,7 @@
 // Cached files hash: d86f7993a1af5fd1. Run python3 _qa/sw_version.py --update after changing a cached file.
 const scope = self.registration.scope;
 const shell = 'huntlink-offline-topo-v12:' + scope;
-const viewer = new URL('offline.html', 'privacy.html', scope).href;
+const viewer = new URL('offline.html', scope).href;
 const files = ['offline.html', 'privacy.html', 'map-nav.css', 'offline.js', 'waypoints.js', 'good-shit.js', 'public-land.js', 'offline-states.json', 'vendor/leaflet/leaflet.css',
   'vendor/leaflet/leaflet.js',
   ...['layers.png','layers-2x.png','marker-icon.png','marker-icon-2x.png','marker-shadow.png'].map(name=>'vendor/leaflet/images/'+name),

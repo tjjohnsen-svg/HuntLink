@@ -32,6 +32,7 @@
 .map-tools #publicLandTool[aria-pressed="true"]{background:#c7e79a;color:#192b23}
 #landNotice{font-size:13px;color:#daf5d9}.leaflet-control-layers input{width:auto}.leaflet-control-layers label{display:block}
 .offlineLink,.privacyLink{color:#daf5d9;padding:8px;text-align:center} .hint{font-size:13px;line-height:1.4;color:#c9d6cb} #loginNote{color:#ffdf9c;font-size:14px}header .offlineLink{margin-left:auto}
+#myGroups h2{font-size:17px;margin:4px 0}#myGroupList{list-style:none;margin:0;padding:0;display:grid;gap:8px}#myGroupList button{width:100%;text-align:left}#switchGroup{margin-top:12px;width:100%}
 .card h1{font-size:32px;margin:0}.card p{margin:0;line-height:1.5;color:#e0e9e0}.linkish{background:none;color:#daf5d9;text-decoration:underline;font-weight:500;padding:8px}.formError{color:#ffcfbd;min-height:1em;font-size:14px;overflow-wrap:anywhere}.note{color:#ffdf9c;font-size:14px;line-height:1.4}#groupLabel{font-size:15px;color:#daf5d9;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}#groupPanel{display:grid;gap:10px;background:#263c30;border-radius:8px;padding:10px;max-height:52vh;overflow:auto}#groupPanel h2{font-size:16px;margin:0}#groupPanel p{margin:0;font-size:14px;line-height:1.4;color:#e0e9e0}#qr{display:grid;place-items:center}#qr svg{width:150px;height:150px;background:#fff;border-radius:8px}#inviteCode{font:700 26px/1.2 ui-monospace,monospace;letter-spacing:.12em;text-align:center}#inviteLink{font-size:13px;padding:8px}#memberList{list-style:none;margin:0;padding:0;display:grid;gap:6px}#memberList li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;min-height:36px}#memberList .who{flex:1;min-width:8em}#memberList .tag{font-size:12px;border-radius:99px;padding:2px 8px;background:#3a5243;color:#e0e9e0}#memberList button,#pendingList button{padding:6px 10px;font-size:13px}#pendingList{list-style:none;margin:0;padding:0;display:grid;gap:6px}#pendingList li{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#pendingList .who{flex:1;min-width:8em}#leaderTools{display:grid;gap:8px}.check{display:flex;align-items:center;gap:8px;font-size:14px}.check input{width:22px;height:22px;flex:none}#lockSetup{display:flex;gap:8px;flex-wrap:wrap}#lockSetup input{flex:1;min-width:10em}
 #whoSees{background:#263c30;border-radius:8px;padding:8px 10px;font-size:14px;line-height:1.4}#whoSees p{margin:2px 0 0;color:#e0e9e0}#whoSees a{color:#daf5d9}#sharingOptions{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}#shareForOption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}#shareFor{font:inherit;padding:6px 8px;border-radius:8px;max-width:100%}
 #hunterDetails{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#263c30;padding:8px 10px;border-radius:8px}#hunterReading{overflow-wrap:anywhere}#closeDetails{flex:none}
@@ -45,7 +46,7 @@
 <link rel="stylesheet" href="./map-nav.css">
 </head>
 <body>
-<section id="start" class="screen" hidden><div class="card"><h1>🌲 HuntLinq</h1><p>See your hunting party on the map.</p><p id="startNote" class="note" role="status" hidden></p><button class="primary" id="startGroup" type="button">Start a group</button><button id="joinWithCode" type="button">Join with a code</button><p class="hint">No account needed. Your location stays private until you tap Start sharing.</p><button id="startReload" type="button" hidden onclick="location.reload()">Reload</button><button id="useLegacy" class="linkish" type="button">Have the original group password? Use it here</button><a class="offlineLink" href="./offline.html">Offline topo maps</a><a class="privacyLink" href="./privacy.html">Privacy</a></div></section>
+<section id="start" class="screen" hidden><div class="card"><h1>🌲 HuntLinq</h1><p>See your hunting party on the map.</p><p id="startNote" class="note" role="status" hidden></p><div id="myGroups" hidden><h2>Your groups</h2><ul id="myGroupList"></ul></div><button class="primary" id="startGroup" type="button">Start a group</button><button id="joinWithCode" type="button">Join with a code</button><p class="hint">No account needed. Your location stays private until you tap Start sharing.</p><button id="startReload" type="button" hidden onclick="location.reload()">Reload</button><button id="useLegacy" class="linkish" type="button">Have the original group password? Use it here</button><a class="offlineLink" href="./offline.html">Offline topo maps</a><a class="privacyLink" href="./privacy.html">Privacy</a></div></section>
 <section id="create" class="screen" hidden><form id="createForm" method="post" action="./" autocomplete="off"><h1>Start a group</h1><label>Group name<input id="groupNameInput" maxlength="40" required autocapitalize="words" placeholder="Elk camp 2026"></label><label>Your name<input id="createName" maxlength="50" required autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint">Use any name you want — it's what your group sees on the map.</small></label><button class="primary" id="createGo" type="submit">Create group</button><p class="hint">You'll be the group leader. You can invite people and make a new code anytime.</p><div class="formError" id="createError" role="status"></div><button type="button" class="back">Back</button></form></section>
 <section id="code" class="screen" hidden><form id="codeForm" method="post" action="./" autocomplete="off"><h1>Join with a code</h1><p>Ask someone in the group for its 6-character code. Codes work for 3 days.</p><label>Group code<input id="codeInput" maxlength="9" required autocapitalize="characters" spellcheck="false" placeholder="K7P-4QX"></label><button class="primary" id="codeGo" type="submit">Continue</button><div class="formError" id="codeError" role="status"></div><button type="button" class="back">Back</button></form></section>
 <section id="join" class="screen" hidden><form id="joinForm" method="post" action="./" autocomplete="off"><h1 id="joinTitle">Checking your invite…</h1><p id="joinWho"></p><label>Your name<input id="joinName" maxlength="50" required autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint">Use any name you want — it's what your group sees on the map.</small></label><button class="primary" id="joinGo" type="submit" disabled>Join group</button><p class="hint">Members see your location only while you're sharing. You can leave anytime.</p><div class="formError" id="joinError" role="status"></div><button type="button" class="back">Not now</button><a class="privacyLink" href="./privacy.html">Privacy</a></form></section>
@@ -54,7 +55,7 @@
 <section id="login" hidden><form id="loginForm" method="post" action="./" autocomplete="on"><h1>🌲 HuntLinq</h1><p>See your hunting group on the map.</p><label>Your name<input id="name" name="username" maxlength="50" required autocomplete="username" autocapitalize="words" spellcheck="false" placeholder="Name on map"><small class="hint" id="nameHint">Use any name you want — it's what your group sees on the map.</small></label><label>Hunt group password<input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Shared password"></label><p id="loginNote" role="status" hidden></p><button class="primary" id="enter" type="submit" disabled>Enter HuntLinq</button><button type="button" class="back" id="legacyBack">Back to start</button><p>Sharing is off until you turn it on. Everyone with the group password can see your shared location. If you lose signal while sharing, the group keeps seeing your last shared spot for up to 6 hours. Stop sharing to remove it.</p><a class="offlineLink" href="./offline.html">Offline topo maps</a><a class="privacyLink" href="./privacy.html">Privacy</a><button id="retryLeave" type="button" hidden>Retry server cleanup</button><button id="reload" type="button" hidden onclick="location.reload()">Reload</button><div id="error" role="status">Connecting...</div></form></section>
 <script>
 // Pick the first screen right away: an invite link, a remembered group (straight to the map), the original password login, or Start.
-(()=>{let s='start';try{if(/^#join=/.test(location.hash))s='join';else if(localStorage.getItem('huntlinkGroup'))s='';else if(localStorage.getItem('huntlinkName')||localStorage.getItem('huntlinkPendingLeave'))s='login';}catch{}if(s)document.getElementById(s).hidden=false;})();
+(()=>{let s='start';try{if(/^#join=/.test(location.hash))s='join';else if(localStorage.getItem('huntlinkGroup'))s='';else if((localStorage.getItem('huntlinkGroups')||'[]')!=='[]')s='start';else if(localStorage.getItem('huntlinkName')||localStorage.getItem('huntlinkPendingLeave'))s='login';}catch{}if(s)document.getElementById(s).hidden=false;})();
 </script>
 <section id="app" hidden>
 <header><h1>🌲 HuntLinq</h1><span id="groupLabel" hidden></span></header>
@@ -72,7 +73,7 @@
 <div id="panel">
 <div id="statusBar" class="tone-off"><div class="statusLine"><span id="connection" class="pill">Connecting…</span><span id="status" role="status">GPS not started. Sharing off.</span></div><div id="statusDetail"></div></div>
 <div id="layerOptions" hidden></div>
-<div id="groupPanel" hidden><h2 id="inviteHeading">Invite your group</h2><div id="qr" role="img" aria-label="QR code for the invite link"></div><div id="inviteCode"></div><p id="inviteHint"></p><div class="buttons"><button id="shareInvite" class="primary" type="button">Share invite link</button><button id="copyCode" type="button">Copy code</button><button id="newCode" type="button" hidden>New code</button></div><input id="inviteLink" readonly aria-label="Invite link"><p id="inviteStatus" role="status"></p><div id="pendingBox" hidden><h2>Waiting to join</h2><ul id="pendingList"></ul></div><h2>Members</h2><ul id="memberList"></ul><div id="leaderTools" hidden><h2>Leader settings</h2><label class="check"><input type="checkbox" id="approvalToggle"> Ask me before new people join</label><label class="check"><input type="checkbox" id="lockToggle"> Ask for a group password each time HuntLinq opens</label><div id="lockSetup" hidden><input id="lockPass" type="password" autocomplete="new-password" minlength="4" maxlength="100" placeholder="Group password (4 or more characters)" aria-label="Group password"><button id="lockSave" type="button">Save password</button></div><button id="resetInvite" class="danger" type="button">Reset invite link</button><p>Resetting stops the old link and code right away. People already in the group stay. To keep someone out, remove them and reset the link.</p><p id="leaderStatus" role="status"></p></div></div>
+<div id="groupPanel" hidden><h2 id="inviteHeading">Invite your group</h2><div id="qr" role="img" aria-label="QR code for the invite link"></div><div id="inviteCode"></div><p id="inviteHint"></p><div class="buttons"><button id="shareInvite" class="primary" type="button">Share invite link</button><button id="copyCode" type="button">Copy code</button><button id="newCode" type="button" hidden>New code</button></div><input id="inviteLink" readonly aria-label="Invite link"><p id="inviteStatus" role="status"></p><div id="pendingBox" hidden><h2>Waiting to join</h2><ul id="pendingList"></ul></div><h2>Members</h2><ul id="memberList"></ul><button id="switchGroup" type="button">Switch or add a group</button><div id="leaderTools" hidden><h2>Leader settings</h2><label class="check"><input type="checkbox" id="approvalToggle"> Ask me before new people join</label><label class="check"><input type="checkbox" id="lockToggle"> Ask for a group password each time HuntLinq opens</label><div id="lockSetup" hidden><input id="lockPass" type="password" autocomplete="new-password" minlength="4" maxlength="100" placeholder="Group password (4 or more characters)" aria-label="Group password"><button id="lockSave" type="button">Save password</button></div><button id="resetInvite" class="danger" type="button">Reset invite link</button><p>Resetting stops the old link and code right away. People already in the group stay. To keep someone out, remove them and reset the link.</p><p id="leaderStatus" role="status"></p></div></div>
 <div id="hunterList" hidden><div id="whoSees" role="note"><b>Who can see you</b><p id="whoSeesText"></p></div><div id="friends"></div><button id="fitAll" type="button">Show everyone on the map</button></div>
 <div id="hunterDetails" hidden><span id="hunterReading" role="status"></span><button id="closeDetails" aria-label="Close hunter details">Close</button></div><div id="landNotice" role="status" hidden></div>
 <div id="sharingOptions" hidden><label id="shareForOption">Auto-stop <select id="shareFor"><option value="0">Never, until I stop</option><option value="2">After 2 hours</option><option value="4">After 4 hours</option><option value="8">After 8 hours</option><option value="12">After 12 hours</option></select></label><label id="awakeOption"><input id="keepAwake" type="checkbox" checked> Keep screen on while sharing</label></div>
@@ -604,10 +605,19 @@ async function signedIn(){if(!auth.currentUser)await withTimeout(signInAnonymous
 // Opening a new invite link while HuntLinq is already open in this tab only changes the hash, so start over to read it.
 addEventListener('hashchange',()=>{if(/^#join=/.test(location.hash))location.reload();});
 function clearJoinHash(){if(location.hash)try{history.replaceState(history.state,'',location.pathname+location.search);}catch{}}
+// ---- Several groups on one phone: remembered here so you can switch without a new invite ----
+function myGroups(){const list=local.get('huntlinkGroups');return Array.isArray(list)?list.filter(x=>x&&typeof x.g==='string'):[];}
+function rememberGroup(saved){local.set('huntlinkGroups',[{g:saved.g,name:String(saved.name||''),me:String(saved.me||''),lock:!!saved.lock},...myGroups().filter(x=>x.g!==saved.g)].slice(0,10));}
+function forgetGroup(g){local.set('huntlinkGroups',myGroups().filter(x=>x.g!==g));}
+function renderMyGroups(){
+ const list=myGroups();$('myGroups').hidden=!list.length;$('myGroupList').replaceChildren();
+ for(const saved of list){const li=document.createElement('li');const b=document.createElement('button');b.type='button';b.className='primary';b.textContent='Open '+saved.name;b.onclick=()=>enterGroup(saved);li.append(b);$('myGroupList').append(li);}
+ $('startGroup').classList.toggle('primary',!list.length);
+}
 function showScreen(id,note=''){
  for(const s of SCREENS)$(s).hidden=s!==id;
  $('app').hidden=true;
- if(id==='start'){$('startNote').textContent=note;$('startNote').hidden=!note;}
+ if(id==='start'){$('startNote').textContent=note;$('startNote').hidden=!note;renderMyGroups();}
 }
 $('startGroup').onclick=()=>{$('createName').value=myName.get();$('createError').textContent='';showScreen('create');$('groupNameInput').focus();};
 $('joinWithCode').onclick=()=>{$('codeError').textContent='';showScreen('code');$('codeInput').focus();};
@@ -702,7 +712,8 @@ $('codeForm').addEventListener('submit',async e=>{
 });
 
 function enterGroup(saved,showInvite=false){
- mode='group';group={g:saved.g,name:saved.name,me:saved.me,lock:!!saved.lock};local.set('huntlinkGroup',group);
+ if(group&&group.g!==saved.g)closeGroup();
+ mode='group';group={g:saved.g,name:saved.name,me:saved.me,lock:!!saved.lock};local.set('huntlinkGroup',group);rememberGroup(group);
  name=group.me||myName.get();
  if(group.lock&&unlockedFor!==group.g){
   // Like the original group: drop this phone's unlock so the server needs the password again, then ask for it.
@@ -728,7 +739,7 @@ function subscribeGroup(){
   groupInfo=s.val();
   if(groupInfo?.name&&groupInfo.name!==group.name){group.name=groupInfo.name;$('groupLabel').textContent=group.name;}
   if(!!groupInfo?.lock!==!!group.lock){group.lock=!!groupInfo?.lock;}
-  local.set('huntlinkGroup',group);
+  local.set('huntlinkGroup',group);rememberGroup(group);
   renderInvite();renderLeaderTools();
  },e=>groupLost(g,e)));
  groupSubs.push(onValue(ref(db,'groups/'+g+'/members'),s=>{
@@ -743,7 +754,7 @@ function groupLost(g,e){
  if(mode!=='group'||group?.g!==g)return;
  if(e&&!isDenied(e))return;
  const groupName=group.name;
- closeGroup();local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
+ closeGroup();forgetGroup(g);local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
  showScreen('start',"You're no longer in "+groupName+'. Ask the group leader for a new invite link.');
 }
 function closeGroup(){
@@ -763,7 +774,7 @@ async function leaveGroup(){
  if(!groupInfo&&connected)try{groupInfo=(await withTimeout(get(ref(db,'groups/'+group.g+'/info')),5000)).val();}catch{}
  const pending={g:group.g,uid,key:groupInfo?.invite||null}, groupName=group.name;
  local.set('huntlinkPendingGroupLeave',pending);
- closeGroup();local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
+ closeGroup();forgetGroup(pending.g);local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
  showScreen('start','You left '+groupName+'.');
  await finishGroupLeave();
 }
@@ -912,6 +923,15 @@ $('unlockForm').addEventListener('submit',async e=>{
  finally{busy=false;$('unlockGo').disabled=false;updateSharing();}
 });
 $('unlockLeave').onclick=()=>void leaveGroup();
+// Switching keeps you in this group (no new invite needed to come back) but stops sharing here first.
+$('switchGroup').onclick=()=>{
+ if(!group)return;
+ if(sharing&&!confirm('Stop sharing in '+group.name+' and switch groups? You stay in '+group.name+' and can switch back anytime.'))return;
+ const from=group.name;
+ if(sharing||local.get('huntlinkSharing')){stopLocally();remove(ownRef()).catch(()=>{});}
+ closeGroup();local.clear('huntlinkGroup');local.clear('huntlinkLastKnown');local.clear('huntlinkSharing');
+ showScreen('start',"You're still in "+from+'. Open another group, start one, or join with a code.');
+};
 
 // ---- Leader tools: approve, remove, co-leaders, reset the invite link, approval and group password ----
 let pendingSub=null, pending={};
@@ -1017,6 +1037,10 @@ try{
  else if(saved?.g&&uid){
   // Remembered phone: open the group map straight away. Membership is checked by the database rules.
   enterGroup(saved);
+ }
+ else if(uid&&name&&myGroups().length){
+  // Remembers both the original group and newer groups: show the group list. The original group still asks for its password.
+  remove(memberRef()).catch(()=>{});showScreen('start');
  }
  else if(uid&&name){
   // Original password group, returning hunter: always show the login with the name filled in and ask for the group password again.

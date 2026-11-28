@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const work=await mkdtemp(path.join(tmpdir(),'huntlink-e2e-'));
-for(const file of ['index.html','offline.html','offline.js','public-land.js','map-nav.css','waypoints.js','offline-states.json','sw.js','manifest.webmanifest','icon-192.png','icon-512.png','icon-maskable-512.png','vendor']) await cp(path.join(root,file),path.join(work,file),{recursive:true});
+for(const file of ['index.html','offline.html','privacy.html','offline.js','public-land.js','map-nav.css','waypoints.js','good-shit.js','offline-states.json','sw.js','manifest.webmanifest','icon-192.png','icon-512.png','icon-maskable-512.png','vendor']) await cp(path.join(root,file),path.join(work,file),{recursive:true});
 let page=await readFile(work+'/index.html','utf8');
 const swap=(a,b)=>{if(!page.includes(a))throw Error('patch failed: '+a);page=page.replace(a,b);};
 swap("import { getAuth, signInAnonymously, signOut }","import { getAuth, signInAnonymously, signOut, connectAuthEmulator }");

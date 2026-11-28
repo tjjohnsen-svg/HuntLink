@@ -26,7 +26,7 @@ def parcels(count, lat, lng):
 
 
 def prepare(work):
-    for name in ('offline.html', 'map-nav.css', 'offline.js', 'public-land.js', 'waypoints.js', 'good-shit.js', 'sw.js',
+    for name in ('offline.html', 'privacy.html', 'map-nav.css', 'offline.js', 'public-land.js', 'waypoints.js', 'good-shit.js', 'sw.js',
                  'offline-states.json', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'):
         shutil.copy(ROOT/name, work/name)
     shutil.copytree(ROOT/'vendor', work/'vendor')

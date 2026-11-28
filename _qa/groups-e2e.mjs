@@ -261,5 +261,32 @@ await A.page.uncheck('#lockToggle');
 await A.page.waitForFunction(()=>document.getElementById('leaderStatus').textContent.includes('no longer need'),null,{timeout:10000});
 await I.page.reload(); await I.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000}); await waitMap(I);
 ok(!(await visible(I,'#unlock')),'with the group password off, the map opens straight away again');
+
+// 14. Several groups on one phone: switch without a new invite.
+await closeTools(I); await I.page.click('#share');
+await I.page.waitForFunction(()=>document.getElementById('share').textContent.includes('Stop sharing'),null,{timeout:15000});
+await I.page.waitForTimeout(3000);
+ok(Object.values(await db('groups/'+g+'/locations')||{}).some(x=>x.name==='Ivy'),'Ivy is sharing in Elk camp before switching');
+await openGroupPanel(I);
+
+await I.page.click('#switchGroup');
+await I.page.waitForSelector('#start:not([hidden])',{timeout:10000});
+ok((await txt(I,'#startNote')).includes("still in Elk camp 2026"),'switching says you stay in the group');
+await I.page.waitForTimeout(2000);
+ok(!Object.values(await db('groups/'+g+'/locations')||{}).some(x=>x.name==='Ivy'),'switching stops sharing in the old group');
+ok((await txt(I,'#myGroupList')).includes('Open Elk camp 2026'),'Start screen lists your groups');
+await I.page.click('#startGroup'); await I.page.fill('#groupNameInput','Ivy scouting'); await I.page.fill('#createName','Ivy'); await I.page.click('#createGo'); await waitMap(I);
+ok((await txt(I,'#groupLabel'))==='Ivy scouting','a member of one group can start a second group');
+await openGroupPanel(I); await I.page.click('#switchGroup');
+await I.page.waitForSelector('#start:not([hidden])',{timeout:10000});
+await shot(I,'13-your-groups');
+ok((await txt(I,'#myGroupList')).includes('Open Ivy scouting') && (await txt(I,'#myGroupList')).includes('Open Elk camp 2026'),'both groups are listed');
+await I.page.click('#myGroupList button:has-text("Elk camp 2026")'); await waitMap(I);
+ok((await txt(I,'#groupLabel'))==='Elk camp 2026','switching back opens the map with no new invite');
+await openGroupPanel(I);
+await I.page.waitForFunction(()=>document.getElementById('memberList').textContent.includes('Gail'),null,{timeout:10000}).catch(()=>{});
+ok((await txt(I,'#memberList')).includes('Gail') && !(await txt(I,'#memberList')).includes('Ivy scouting'),'Elk camp members show again after switching back');
+await I.page.reload(); await I.page.waitForFunction(()=>window.huntlinkReady,null,{timeout:20000}); await waitMap(I);
+ok((await txt(I,'#groupLabel'))==='Elk camp 2026','a relaunch opens the group you used last');
 log('FAILURES',fails,'· screenshots in',shotDir);
 await browser.close(); server.close(); process.exit(fails?1:0);

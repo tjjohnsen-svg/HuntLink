@@ -24,7 +24,8 @@ The rules in `database.rules.json` keep each group private to its own members. `
 1. **Publish the new rules first.** In the Firebase console, open Realtime Database, then Rules. Paste the whole `database.rules.json` from the newest phase you are merging, then tap Publish. The original group keeps working, because its part of the rules is unchanged.
 2. **Then merge the pull request.** If the app goes live before the rules, starting a group fails with a permission error. The original group is not affected.
 3. **Stacked phases: one rules publish per merge.** Each phase's rules include the earlier phases', so publish phase 1's rules, merge phase 1, then publish phase 2's rules, merge phase 2. Publishing phase 2's rules while phase 1 is live is also safe.
-4. **Nothing else changes in Firebase.** Anonymous sign-in stays on, there's no data to copy, and it still fits the free Spark plan.
+4. **Phase 3 (switch groups) has no rules change.** Its `database.rules.json` is the same as phase 2's, so after phase 2's rules are published it can be merged straight away.
+5. **Nothing else changes in Firebase.** Anonymous sign-in stays on, there's no data to copy, and it still fits the free Spark plan.
 
 ## Moving the original crew
 
